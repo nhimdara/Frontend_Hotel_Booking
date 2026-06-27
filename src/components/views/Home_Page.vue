@@ -2,7 +2,7 @@
   <div>
     <Navbar />
     <Banner />
-    <Card @show-hotels="$emit('show-hotels')" />
+    <Card />
     <Trending />
     <Footer />
   </div>
@@ -19,7 +19,6 @@ import Footer from "../layout/Footer.vue";
 
 export default {
   name: "HomePage",
-  emits: ["show-hotels"],
   components: { Navbar, Banner, Card, Trending, Footer },
 };
 </script>

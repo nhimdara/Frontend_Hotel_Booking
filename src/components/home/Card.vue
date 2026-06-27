@@ -13,7 +13,6 @@
       </div>
       <a
         href="#"
-        @click.prevent="viewHotels"
         class="hidden items-center gap-1.5 text-sm font-semibold text-teal-800 transition-colors hover:text-teal-900 sm:flex"
       >
         View all properties
@@ -54,15 +53,14 @@
 
           <button
             type="button"
-            :aria-label="stay.wishlisted ? 'Remove from favorites' : 'Save to favorites'"
+            aria-label="Save to favorites"
             class="absolute right-3.5 top-3.5 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-sm transition hover:bg-white"
-            @click="toggleWishlist(stay)"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              :fill="stay.wishlisted ? '#ef4444' : 'none'"
-              :stroke="stay.wishlisted ? '#ef4444' : 'currentColor'"
+              fill="none"
+              stroke="currentColor"
               stroke-width="2"
               class="h-4 w-4"
             >
@@ -126,7 +124,6 @@
             <button
               type="button"
               class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
-              @click="viewHotels"
             >
               View Details
             </button>
@@ -138,11 +135,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-
-const emit = defineEmits(["show-hotels"]);
-
-const stays = ref([
+const stays = [
   {
     id: 1,
     name: "Forest Edge Retreat",
@@ -154,7 +147,6 @@ const stays = ref([
     image:
       "https://images.unsplash.com/photo-1518733057094-95b53143d2a7?q=80&w=600&auto=format&fit=crop",
     badge: { label: "Top Rated", style: "bg-amber-400 text-slate-900" },
-    wishlisted: false,
   },
   {
     id: 2,
@@ -167,7 +159,6 @@ const stays = ref([
     image:
       "https://images.unsplash.com/photo-1505691938895-1758d7feb511?q=80&w=600&auto=format&fit=crop",
     badge: null,
-    wishlisted: false,
   },
   {
     id: 3,
@@ -180,7 +171,6 @@ const stays = ref([
     image:
       "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=600&auto=format&fit=crop",
     badge: { label: "New Arrival", style: "bg-teal-800 text-white" },
-    wishlisted: false,
   },
   {
     id: 4,
@@ -193,19 +183,10 @@ const stays = ref([
     image:
       "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=600&auto=format&fit=crop",
     badge: null,
-    wishlisted: false,
   },
-]);
+];
 
-const displayedStays = stays.value.slice(0, 4);
-
-function toggleWishlist(stay) {
-  stay.wishlisted = !stay.wishlisted;
-}
-
-function viewHotels() {
-  emit("show-hotels");
-}
+const displayedStays = stays.slice(0, 4);
 </script>
 
 <style scoped>
