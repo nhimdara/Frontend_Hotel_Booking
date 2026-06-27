@@ -1,7 +1,25 @@
 <template>
-  <div class="min-h-screen bg-slate-50 font-sans">
+  <div id="hotels" class="min-h-screen bg-slate-50 font-sans">
     <!-- Page Content -->
     <div class="max-w-[1400px] mx-auto px-6 py-10">
+      <button
+        type="button"
+        class="mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-700 hover:text-teal-800"
+        @click="emit('back-home')"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back Home
+      </button>
+
       <!-- Header -->
       <div
         class="mb-12 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between"
@@ -36,20 +54,20 @@
             class="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm"
           >
             <p class="text-3xl font-bold text-slate-900">
-              {{ properties.length }}
+              {{ filteredProperties.length }}
             </p>
-            <p class="mt-1 text-sm text-slate-500">Hotels</p>
+            <p class="mt-1 text-sm text-slate-500">Matches</p>
           </div>
           <div
             class="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm"
           >
-            <p class="text-3xl font-bold text-slate-900">$275</p>
+            <p class="text-3xl font-bold text-slate-900">${{ averagePrice }}</p>
             <p class="mt-1 text-sm text-slate-500">Avg. Price</p>
           </div>
           <div
             class="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm"
           >
-            <p class="text-3xl font-bold text-slate-900">4.8★</p>
+            <p class="text-3xl font-bold text-slate-900">{{ averageRating }}★</p>
             <p class="mt-1 text-sm text-slate-500">Guest Rating</p>
           </div>
         </div>
@@ -59,6 +77,7 @@
         class="border-b border-slate-200 py-3 pb-10 flex items-center gap-3 flex-wrap"
       >
         <button
+          @click="setFilter('all')"
           class="flex items-center gap-2 bg-teal-800 text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-teal-900 transition"
         >
           <svg
@@ -75,15 +94,21 @@
               d="M3 4h18M7 10h10M11 16h2"
             />
           </svg>
-          Filters
+          All Stays
         </button>
 
         <button
           v-for="filter in filters"
-          :key="filter"
-          class="text-sm text-slate-600 border border-slate-300 rounded-full px-4 py-1.5 hover:border-teal-700 hover:text-teal-800 transition bg-white"
+          :key="filter.value"
+          @click="setFilter(filter.value)"
+          class="text-sm border rounded-full px-4 py-1.5 transition"
+          :class="
+            activeFilter === filter.value
+              ? 'border-teal-800 bg-teal-50 text-teal-900'
+              : 'border-slate-300 bg-white text-slate-600 hover:border-teal-700 hover:text-teal-800'
+          "
         >
-          {{ filter }}
+          {{ filter.label }}
         </button>
 
         <div class="ml-auto flex items-center gap-2">
@@ -92,12 +117,13 @@
             >Sort:</span
           >
           <select
+            v-model="sortOption"
             class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
           >
-            <option>Recommended</option>
-            <option>Price: Low to High</option>
-            <option>Price: High to Low</option>
-            <option>Guest Rating</option>
+            <option value="recommended">Recommended</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+            <option value="rating">Guest Rating</option>
           </select>
         </div>
       </div>
@@ -207,6 +233,7 @@
               <button
                 type="button"
                 class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
+                @click="openProperty(property)"
               >
                 View Details
               </button>
@@ -240,7 +267,7 @@
         </button>
 
         <!-- Page Numbers -->
-        <template v-for="item in paginationItems" :key="item">
+        <template v-for="(item, index) in paginationItems" :key="`${item}-${index}`">
           <span
             v-if="item === '...'"
             class="flex h-10 w-10 items-center justify-center text-sm text-slate-400 select-none"
@@ -286,11 +313,20 @@
 
       <!-- Page info -->
       <p class="mt-4 text-center text-sm text-slate-400">
-        Showing {{ startIndex + 1 }}–{{
-          Math.min(endIndex, properties.length)
+        Showing {{ filteredProperties.length ? startIndex + 1 : 0 }}-{{
+          Math.min(endIndex, filteredProperties.length)
         }}
-        of {{ properties.length }} hotels
+        of {{ filteredProperties.length }} hotels
       </p>
+      <div
+        v-if="!filteredProperties.length"
+        class="mt-10 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"
+      >
+        <h3 class="text-lg font-semibold text-slate-900">No hotels found</h3>
+        <p class="mt-2 text-sm text-slate-500">
+          Try another filter to see more available stays.
+        </p>
+      </div>
       <!-- Most Recommended Section -->
       <div class="mb-12">
         <div class="flex items-center justify-between mb-5">
@@ -302,6 +338,7 @@
           </div>
           <a
             href="#"
+            @click.prevent="setFilter('top-rated')"
             class="text-sm font-semibold text-teal-800 hover:text-teal-900 transition flex items-center gap-1"
           >
             See all
@@ -422,6 +459,7 @@
                 <button
                   type="button"
                   class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
+                  @click="openProperty(property)"
                 >
                   View Details
                 </button>
@@ -431,23 +469,109 @@
         </div>
       </div>
     </div>
+
+    <div
+      v-if="selectedProperty"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8"
+      @click.self="closeProperty"
+    >
+      <article
+        class="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+      >
+        <div class="relative h-72">
+          <img
+            :src="selectedProperty.image"
+            :alt="selectedProperty.name"
+            class="h-full w-full object-cover"
+          />
+          <button
+            type="button"
+            aria-label="Close details"
+            class="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-sm transition hover:bg-white"
+            @click="closeProperty"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="space-y-5 p-6">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 class="text-2xl font-bold text-slate-900">
+                {{ selectedProperty.name }}
+              </h2>
+              <p class="mt-1 text-sm text-slate-500">
+                {{ selectedProperty.location }}
+              </p>
+            </div>
+            <div class="rounded-xl bg-teal-50 px-4 py-3 text-right">
+              <p class="text-xs font-semibold uppercase text-teal-700">
+                From
+              </p>
+              <p class="text-xl font-bold text-teal-900">
+                ${{ selectedProperty.price }}/night
+              </p>
+            </div>
+          </div>
+          <p class="text-sm leading-6 text-slate-600">
+            {{ selectedProperty.description }}
+          </p>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-xl border border-slate-200 p-4">
+              <p class="text-xs uppercase tracking-wide text-slate-400">Rating</p>
+              <p class="mt-1 font-semibold text-slate-900">
+                {{ selectedProperty.rating.toFixed(2) }} out of 5
+              </p>
+            </div>
+            <div class="rounded-xl border border-slate-200 p-4">
+              <p class="text-xs uppercase tracking-wide text-slate-400">Booking</p>
+              <p class="mt-1 font-semibold text-slate-900">Free cancellation</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 p-4">
+              <p class="text-xs uppercase tracking-wide text-slate-400">Support</p>
+              <p class="mt-1 font-semibold text-slate-900">24/7 concierge</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="w-full rounded-xl bg-teal-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-900"
+            @click="closeProperty"
+          >
+            Reserve This Stay
+          </button>
+        </div>
+      </article>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { computed, ref, watch } from "vue";
+
+const emit = defineEmits(["back-home"]);
 
 const ITEMS_PER_PAGE = 8;
 
 const filters = [
-  "Price Range",
-  "Property Type",
-  "Guest Rating",
-  "Free Cancellation",
-  "Pet Friendly",
+  { label: "Top Rated", value: "top-rated" },
+  { label: "Under $300", value: "under-300" },
+  { label: "Luxury", value: "luxury" },
+  { label: "Boutique", value: "boutique" },
+  { label: "Eiffel View", value: "eiffel-view" },
 ];
 
 const currentPage = ref(1);
+const activeFilter = ref("all");
+const sortOption = ref("recommended");
+const selectedProperty = ref(null);
 const recommended = computed(() =>
   [...properties.value].sort((a, b) => b.rating - a.rating).slice(0, 6),
 );
@@ -664,16 +788,60 @@ const properties = ref([
 ]);
 
 // Computed
+const filteredProperties = computed(() => {
+  const filtered = properties.value.filter((property) => {
+    if (activeFilter.value === "all") return true;
+    if (activeFilter.value === "top-rated") return property.rating >= 4.8;
+    if (activeFilter.value === "under-300") return property.price < 300;
+    if (activeFilter.value === "luxury") return property.price >= 500;
+    if (activeFilter.value === "boutique") {
+      return property.name.toLowerCase().includes("boutique");
+    }
+    if (activeFilter.value === "eiffel-view") {
+      return (
+        property.name.toLowerCase().includes("tower") ||
+        property.description.toLowerCase().includes("eiffel")
+      );
+    }
+    return true;
+  });
+
+  return filtered.sort((a, b) => {
+    if (sortOption.value === "price-low") return a.price - b.price;
+    if (sortOption.value === "price-high") return b.price - a.price;
+    if (sortOption.value === "rating") return b.rating - a.rating;
+    return b.rating - a.rating || a.price - b.price;
+  });
+});
+
 const totalPages = computed(() =>
-  Math.ceil(properties.value.length / ITEMS_PER_PAGE),
+  Math.max(1, Math.ceil(filteredProperties.value.length / ITEMS_PER_PAGE)),
 );
 
 const startIndex = computed(() => (currentPage.value - 1) * ITEMS_PER_PAGE);
 const endIndex = computed(() => startIndex.value + ITEMS_PER_PAGE);
 
 const paginatedProperties = computed(() =>
-  properties.value.slice(startIndex.value, endIndex.value),
+  filteredProperties.value.slice(startIndex.value, endIndex.value),
 );
+
+const averagePrice = computed(() => {
+  if (!filteredProperties.value.length) return 0;
+  const total = filteredProperties.value.reduce(
+    (sum, property) => sum + property.price,
+    0,
+  );
+  return Math.round(total / filteredProperties.value.length);
+});
+
+const averageRating = computed(() => {
+  if (!filteredProperties.value.length) return "0.0";
+  const total = filteredProperties.value.reduce(
+    (sum, property) => sum + property.rating,
+    0,
+  );
+  return (total / filteredProperties.value.length).toFixed(1);
+});
 
 const paginationItems = computed(() => {
   const total = totalPages.value;
@@ -697,12 +865,29 @@ const paginationItems = computed(() => {
 function goToPage(page) {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  document.getElementById("hotels")?.scrollIntoView({ behavior: "smooth" });
 }
 
 function toggleWishlist(property) {
   property.wishlisted = !property.wishlisted;
 }
+
+function setFilter(filter) {
+  activeFilter.value = filter;
+  currentPage.value = 1;
+}
+
+function openProperty(property) {
+  selectedProperty.value = property;
+}
+
+function closeProperty() {
+  selectedProperty.value = null;
+}
+
+watch(sortOption, () => {
+  currentPage.value = 1;
+});
 </script>
 
 <style scoped>
