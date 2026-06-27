@@ -8,6 +8,8 @@
   </div>
 </template>
 
+
+
 <script>
 import Navbar from "../layout/Navbar.vue";
 import Banner from "../home/Banner.vue";
@@ -20,3 +22,4 @@ export default {
   components: { Navbar, Banner, Card, Trending, Footer },
 };
 </script>
+

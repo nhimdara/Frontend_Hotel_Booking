@@ -1,7 +1,5 @@
 <template>
   <div class="min-h-screen bg-slate-50 font-sans">
-   
-
     <!-- Page Content -->
     <div class="max-w-[1400px] mx-auto px-6 py-10">
       <!-- Header -->
@@ -56,53 +54,53 @@
           </div>
         </div>
       </div>
-       <!-- Filter Bar -->
-    <div
-      class=" border-b border-slate-200 py-3 pb-10 flex items-center gap-3 flex-wrap"
-    >
-      <button
-        class="flex items-center gap-2 bg-teal-800 text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-teal-900 transition"
+      <!-- Filter Bar -->
+      <div
+        class="border-b border-slate-200 py-3 pb-10 flex items-center gap-3 flex-wrap"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="w-4 h-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+        <button
+          class="flex items-center gap-2 bg-teal-800 text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-teal-900 transition"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M3 4h18M7 10h10M11 16h2"
-          />
-        </svg>
-        Filters
-      </button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 4h18M7 10h10M11 16h2"
+            />
+          </svg>
+          Filters
+        </button>
 
-      <button
-        v-for="filter in filters"
-        :key="filter"
-        class="text-sm text-slate-600 border border-slate-300 rounded-full px-4 py-1.5 hover:border-teal-700 hover:text-teal-800 transition bg-white"
-      >
-        {{ filter }}
-      </button>
+        <button
+          v-for="filter in filters"
+          :key="filter"
+          class="text-sm text-slate-600 border border-slate-300 rounded-full px-4 py-1.5 hover:border-teal-700 hover:text-teal-800 transition bg-white"
+        >
+          {{ filter }}
+        </button>
 
-      <div class="ml-auto flex items-center gap-2">
-        <span
-          class="text-xs font-medium uppercase tracking-widest text-slate-400"
-          >Sort:</span
-        >
-        <select
-          class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
-        >
-          <option>Recommended</option>
-          <option>Price: Low to High</option>
-          <option>Price: High to Low</option>
-          <option>Guest Rating</option>
-        </select>
+        <div class="ml-auto flex items-center gap-2">
+          <span
+            class="text-xs font-medium uppercase tracking-widest text-slate-400"
+            >Sort:</span
+          >
+          <select
+            class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
+          >
+            <option>Recommended</option>
+            <option>Price: Low to High</option>
+            <option>Price: High to Low</option>
+            <option>Guest Rating</option>
+          </select>
+        </div>
       </div>
-    </div>
 
       <!-- Property Grid -->
       <div
@@ -404,7 +402,6 @@
                 </svg>
                 {{ property.location }}
               </p>
-
 
               <div
                 class="mt-5 flex items-center justify-between gap-3 pt-4 border-t border-slate-100"
