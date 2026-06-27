@@ -34,7 +34,7 @@
       <article
         v-for="stay in displayedStays"
         :key="stay.id"
-        class="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-lg"
+        class="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-lg"
       >
         <div class="relative aspect-[5/4] overflow-hidden">
           <img
@@ -71,7 +71,7 @@
           </button>
         </div>
 
-        <div class="p-5">
+        <div class="flex flex-1 flex-col p-5">
           <div class="flex items-start justify-between gap-2">
             <h3 class="text-base font-semibold text-slate-900 sm:text-lg">
               {{ stay.name }}
@@ -100,7 +100,7 @@
               fill="none"
               stroke="currentColor"
               stroke-width="2"
-              class="h-3.5 w-3.5"
+              class="h-3.5 w-3.5 shrink-0"
             >
               <path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 1 1 18 0Z" />
               <circle cx="12" cy="10" r="3" />
@@ -108,10 +108,26 @@
             {{ stay.location }}
           </p>
 
-          <p class="mt-4 text-base font-semibold text-teal-800">
-            ${{ stay.price }}
-            <span class="font-normal text-slate-400">/ night</span>
+          <!-- Description -->
+          <p class="mt-3 text-sm text-slate-500 line-clamp-2 flex-1">
+            {{ stay.description }}
           </p>
+
+          <!-- Price + Button -->
+          <div
+            class="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4"
+          >
+            <p class="text-base font-semibold text-teal-800">
+              ${{ stay.price }}
+              <span class="font-normal text-slate-400">/ night</span>
+            </p>
+            <button
+              type="button"
+              class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
+            >
+              View Details
+            </button>
+          </div>
         </div>
       </article>
     </div>
@@ -126,6 +142,8 @@ const stays = [
     location: "Bergen, Norway",
     price: 320,
     rating: 4.92,
+    description:
+      "A tranquil escape nestled among ancient pines, with floor-to-ceiling windows framing the fjord and direct access to hiking trails.",
     image:
       "https://images.unsplash.com/photo-1518733057094-95b53143d2a7?q=80&w=600&auto=format&fit=crop",
     badge: { label: "Top Rated", style: "bg-amber-400 text-slate-900" },
@@ -136,6 +154,8 @@ const stays = [
     location: "Paris, France",
     price: 450,
     rating: 4.88,
+    description:
+      "Experience ultimate Parisian luxury with breathtaking views of the Eiffel Tower and premium amenities in the heart of the city.",
     image:
       "https://images.unsplash.com/photo-1505691938895-1758d7feb511?q=80&w=600&auto=format&fit=crop",
     badge: null,
@@ -146,6 +166,8 @@ const stays = [
     location: "Arizona, USA",
     price: 285,
     rating: 4.95,
+    description:
+      "Unwind in a desert hideaway surrounded by dramatic red sandstone formations, with a private pool and stargazing deck.",
     image:
       "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=600&auto=format&fit=crop",
     badge: { label: "New Arrival", style: "bg-teal-800 text-white" },
@@ -156,18 +178,25 @@ const stays = [
     location: "Tokyo, Japan",
     price: 510,
     rating: 4.85,
+    description:
+      "A sleek, design-forward loft in the heart of Shibuya with panoramic skyline views and curated Japanese interiors.",
     image:
       "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=600&auto=format&fit=crop",
     badge: null,
   },
 ];
 
-// Computed property to limit to 4 cards
 const displayedStays = stays.slice(0, 4);
 </script>
 
 <style scoped>
 .font-display {
   font-family: "Fraunces", ui-serif, Georgia, serif;
+}
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>
