@@ -1,20 +1,20 @@
 <template>
-  <section class="relative h-screen min-h-[600px] w-full overflow-hidden">
+  <section class="relative min-h-[100svh] w-full overflow-hidden">
     <img
       src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=2000&auto=format&fit=crop"
       alt="Infinity pool overlooking the coast at sunset"
       class="absolute inset-0 h-full w-full object-cover"
     />
-    <!-- Layered overlay: legibility without flattening the photo -->
+    <!-- Layered overlay -->
     <div
-      class="absolute inset-0 bg-gradient-to-b from-slate-950/60 via-slate-950/15 to-slate-950/70"
+      class="absolute inset-0 bg-gradient-to-b from-slate-950/60 via-slate-950/15 to-slate-950/75"
     />
     <div
-      class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"
+      class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"
     />
 
     <div
-      class="relative z-10 mx-auto flex h-full max-w-5xl flex-col items-center justify-center px-6 text-center"
+      class="relative z-10 mx-auto flex h-full min-h-[100svh] max-w-5xl flex-col items-center justify-center px-5 pb-10 pt-24 text-center sm:px-6 sm:pt-0 sm:pb-0"
     >
       <p
         class="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-amber-300"
@@ -23,26 +23,27 @@
       </p>
 
       <h1
-        class="font-display text-5xl font-semibold leading-[1.05] text-white drop-shadow-sm sm:text-6xl lg:text-7xl"
+        class="font-display text-4xl font-semibold leading-[1.08] text-white drop-shadow-sm xs:text-5xl sm:text-6xl lg:text-7xl"
       >
-        Find your next<br class="hidden sm:block" />
+        Find your next<br />
         peaceful retreat
       </h1>
 
-      <p class="mt-6 max-w-xl text-lg leading-relaxed text-white/85">
+      <p
+        class="mt-4 max-w-sm text-base leading-relaxed text-white/85 sm:mt-6 sm:max-w-xl sm:text-lg"
+      >
         Discover curated stays designed for comfort and clarity — premium
         hospitality, at your fingertips.
       </p>
 
       <!-- Search card -->
-       
-      <div class="mt-10 w-full max-w-4xl">
+      <div class="mt-8 w-full max-w-4xl sm:mt-10">
         <div
-          class="flex flex-col gap-1 rounded-2xl bg-white/95 p-2 shadow-2xl shadow-black/30 ring-1 ring-black/5 backdrop-blur-sm sm:flex-row sm:items-center sm:gap-0 sm:rounded-full"
+          class="flex flex-col gap-0 rounded-2xl bg-white/95 p-3 shadow-2xl shadow-black/30 ring-1 ring-black/5 backdrop-blur-sm sm:flex-row sm:items-center sm:gap-0 sm:rounded-full sm:p-2"
         >
           <!-- Location -->
           <div
-            class="group relative flex flex-1 items-center gap-3 rounded-xl px-5 py-3 text-left transition-colors hover:bg-slate-50 sm:rounded-full"
+            class="group flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-5"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -55,7 +56,7 @@
               <path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 1 1 18 0Z" />
               <circle cx="12" cy="10" r="3" />
             </svg>
-            <div class="flex flex-col">
+            <div class="flex flex-col min-w-0 flex-1">
               <span class="text-xs font-semibold text-slate-900">Location</span>
               <input
                 placeholder="Where are you going?"
@@ -65,9 +66,11 @@
             </div>
           </div>
 
+          <div class="mx-4 h-px bg-slate-100 sm:hidden" />
+
           <!-- Dates -->
           <div
-            class="group relative flex flex-1 items-center gap-3 rounded-xl px-5 py-3 text-left transition-colors hover:bg-slate-50 sm:rounded-full sm:border-l sm:border-slate-200"
+            class="group flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-5 sm:border-l sm:border-slate-200"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -82,7 +85,7 @@
               <line x1="8" y1="2" x2="8" y2="6" />
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
-            <div class="flex flex-col">
+            <div class="flex flex-col min-w-0 flex-1">
               <span class="text-xs font-semibold text-slate-900">Dates</span>
               <input
                 placeholder="Add dates"
@@ -92,9 +95,11 @@
             </div>
           </div>
 
+          <div class="mx-4 h-px bg-slate-100 sm:hidden" />
+
           <!-- Guests -->
           <div
-            class="group relative flex flex-1 items-center gap-3 rounded-xl px-5 py-3 text-left transition-colors hover:bg-slate-50 sm:rounded-full sm:border-l sm:border-slate-200"
+            class="group flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-5 sm:border-l sm:border-slate-200"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -107,7 +112,7 @@
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
-            <div class="flex flex-col">
+            <div class="flex flex-col min-w-0 flex-1">
               <span class="text-xs font-semibold text-slate-900">Guests</span>
               <input
                 placeholder="Add guests"
@@ -117,9 +122,10 @@
             </div>
           </div>
 
+          <!-- Search Button -->
           <button
             type="button"
-            class="m-1 flex items-center justify-center gap-2 rounded-full bg-teal-800 px-7 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-teal-900 hover:shadow-lg active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2"
+            class="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-800 px-7 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-teal-900 hover:shadow-lg active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 sm:mt-0 sm:w-auto sm:rounded-full sm:m-1"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -139,7 +145,7 @@
 
       <!-- Trust strip -->
       <div
-        class="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-xs font-medium text-white/70"
+        class="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-white/70 sm:mt-8 sm:gap-x-8"
       >
         <span class="flex items-center gap-1.5">
           <svg

@@ -1,26 +1,20 @@
 <template>
   <div>
-    <Navbar />
     <Banner />
-    <Card @show-hotels="$emit('show-hotels')" />
+    <Card @show-hotels="goToHotels" />
     <Trending />
-    <Footer />
   </div>
 </template>
 
-
-
-<script>
-import Navbar from "../layout/Navbar.vue";
+<script setup>
+import { useRouter } from "vue-router";
 import Banner from "../home/Banner.vue";
 import Card from "../home/Card.vue";
 import Trending from "../home/Trending.vue";
-import Footer from "../layout/Footer.vue";
 
-export default {
-  name: "HomePage",
-  emits: ["show-hotels"],
-  components: { Navbar, Banner, Card, Trending, Footer },
-};
+const router = useRouter();
+
+function goToHotels() {
+  router.push("/hotels");
+}
 </script>
-

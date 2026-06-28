@@ -459,7 +459,7 @@
                 <button
                   type="button"
                   class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
-                  @click="openProperty(property)"
+                  
                 >
                   View Details
                 </button>
@@ -470,86 +470,7 @@
       </div>
     </div>
 
-    <div
-      v-if="selectedProperty"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8"
-      @click.self="closeProperty"
-    >
-      <article
-        class="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl"
-      >
-        <div class="relative h-72">
-          <img
-            :src="selectedProperty.image"
-            :alt="selectedProperty.name"
-            class="h-full w-full object-cover"
-          />
-          <button
-            type="button"
-            aria-label="Close details"
-            class="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-sm transition hover:bg-white"
-            @click="closeProperty"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div class="space-y-5 p-6">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 class="text-2xl font-bold text-slate-900">
-                {{ selectedProperty.name }}
-              </h2>
-              <p class="mt-1 text-sm text-slate-500">
-                {{ selectedProperty.location }}
-              </p>
-            </div>
-            <div class="rounded-xl bg-teal-50 px-4 py-3 text-right">
-              <p class="text-xs font-semibold uppercase text-teal-700">
-                From
-              </p>
-              <p class="text-xl font-bold text-teal-900">
-                ${{ selectedProperty.price }}/night
-              </p>
-            </div>
-          </div>
-          <p class="text-sm leading-6 text-slate-600">
-            {{ selectedProperty.description }}
-          </p>
-          <div class="grid gap-3 sm:grid-cols-3">
-            <div class="rounded-xl border border-slate-200 p-4">
-              <p class="text-xs uppercase tracking-wide text-slate-400">Rating</p>
-              <p class="mt-1 font-semibold text-slate-900">
-                {{ selectedProperty.rating.toFixed(2) }} out of 5
-              </p>
-            </div>
-            <div class="rounded-xl border border-slate-200 p-4">
-              <p class="text-xs uppercase tracking-wide text-slate-400">Booking</p>
-              <p class="mt-1 font-semibold text-slate-900">Free cancellation</p>
-            </div>
-            <div class="rounded-xl border border-slate-200 p-4">
-              <p class="text-xs uppercase tracking-wide text-slate-400">Support</p>
-              <p class="mt-1 font-semibold text-slate-900">24/7 concierge</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="w-full rounded-xl bg-teal-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-900"
-            @click="closeProperty"
-          >
-            Reserve This Stay
-          </button>
-        </div>
-      </article>
-    </div>
+  
   </div>
 </template>
 

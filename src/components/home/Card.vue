@@ -14,9 +14,9 @@
       <a
         href="#"
         @click.prevent="viewHotels"
-        class="hidden items-center gap-1.5 text-sm font-semibold text-teal-800 transition-colors hover:text-teal-900 sm:flex"
+        class="flex items-center gap-1.5 text-sm font-semibold text-teal-800 transition-colors hover:text-teal-900"
       >
-        View all properties
+        View all
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -54,7 +54,9 @@
 
           <button
             type="button"
-            :aria-label="stay.wishlisted ? 'Remove from favorites' : 'Save to favorites'"
+            :aria-label="
+              stay.wishlisted ? 'Remove from favorites' : 'Save to favorites'
+            "
             class="absolute right-3.5 top-3.5 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-sm transition hover:bg-white"
             @click="toggleWishlist(stay)"
           >
@@ -126,7 +128,6 @@
             <button
               type="button"
               class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
-              @click="viewHotels"
             >
               View Details
             </button>

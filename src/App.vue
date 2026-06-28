@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <Home_Page v-if="currentPage === 'home'" @show-hotels="showHotels" />
   <Hotel_Card v-else @back-home="showHome" />
 </template>
@@ -21,4 +21,14 @@ function showHome() {
 }
 </script>
 
-<style></style>
+<style></style> -->
+<template>
+  <Navbar />
+  <RouterView />
+  <Footer />
+</template>
+
+<script setup>
+import Navbar from "./components/layout/Navbar.vue";
+import Footer from "./components/layout/Footer.vue";
+</script>
