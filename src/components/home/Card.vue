@@ -139,66 +139,13 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { computed } from "vue";
+import hotelApi from "./../../service/api/Hotel.js";
 
 const emit = defineEmits(["show-hotels"]);
 
-const stays = ref([
-  {
-    id: 1,
-    name: "Forest Edge Retreat",
-    location: "Bergen, Norway",
-    price: 320,
-    rating: 4.92,
-    description:
-      "A tranquil escape nestled among ancient pines, with floor-to-ceiling windows framing the fjord and direct access to hiking trails.",
-    image:
-      "https://images.unsplash.com/photo-1518733057094-95b53143d2a7?q=80&w=600&auto=format&fit=crop",
-    badge: { label: "Top Rated", style: "bg-amber-400 text-slate-900" },
-    wishlisted: false,
-  },
-  {
-    id: 2,
-    name: "The Azure Boutique",
-    location: "Paris, France",
-    price: 450,
-    rating: 4.88,
-    description:
-      "Experience ultimate Parisian luxury with breathtaking views of the Eiffel Tower and premium amenities in the heart of the city.",
-    image:
-      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?q=80&w=600&auto=format&fit=crop",
-    badge: null,
-    wishlisted: false,
-  },
-  {
-    id: 3,
-    name: "Red Rock Sanctuary",
-    location: "Arizona, USA",
-    price: 285,
-    rating: 4.95,
-    description:
-      "Unwind in a desert hideaway surrounded by dramatic red sandstone formations, with a private pool and stargazing deck.",
-    image:
-      "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=600&auto=format&fit=crop",
-    badge: { label: "New Arrival", style: "bg-teal-800 text-white" },
-    wishlisted: false,
-  },
-  {
-    id: 4,
-    name: "Zenith City Loft",
-    location: "Tokyo, Japan",
-    price: 510,
-    rating: 4.85,
-    description:
-      "A sleek, design-forward loft in the heart of Shibuya with panoramic skyline views and curated Japanese interiors.",
-    image:
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=600&auto=format&fit=crop",
-    badge: null,
-    wishlisted: false,
-  },
-]);
-
-const displayedStays = stays.value.slice(0, 4);
+const { hotels: stays } = hotelApi.setup();
+const displayedStays = computed(() => stays.value.slice(0, 4));
 
 function toggleWishlist(stay) {
   stay.wishlisted = !stay.wishlisted;
