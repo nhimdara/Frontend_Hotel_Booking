@@ -5,7 +5,7 @@
       <button
         type="button"
         class="mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-700 hover:text-teal-800"
-        @click="emit('back-home')"
+        @click="router.push('/')"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -486,8 +486,6 @@ import { useRouter } from "vue-router";
 import { ref, computed, watch } from "vue";
 import hotelApi from "../../service/api/Hotel.js";
 import Hotel_Detail from "./Hotel_Detail.vue";
-
-const emit = defineEmits(["back-home"]);
 
 const router = useRouter();
 

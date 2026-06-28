@@ -1,7 +1,26 @@
 <template>
   <div v-if="hotel" class="min-h-screen bg-gray-50 font-sans">
     <!-- Header / Title -->
-    <div class="max-w-5xl mx-auto px-4 pt-6 pb-2">
+    <div class="max-w-350 mx-auto px-6 pt-6 pb-2">
+      <button
+        @click="goBack"
+        class="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-800 transition mb-4"
+      >
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          ></path>
+        </svg>
+        Back to Hotels
+      </button>
       <div class="flex items-start justify-between">
         <div>
           <span
@@ -49,26 +68,26 @@
             class="flex items-center gap-1.5 border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 transition"
           >
             <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
+              class="w-4 h-4 transition-colors"
+              :fill="hotel.wishlisted ? '#ef4444' : 'none'"
+              :stroke="hotel.wishlisted ? '#ef4444' : 'currentColor'"
               viewBox="0 0 24 24"
+              stroke-width="2"
             >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                stroke-width="2"
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"
               />
             </svg>
-            Save
+            {{ hotel.wishlisted ? "Saved" : "Save" }}
           </button>
         </div>
       </div>
     </div>
 
     <!-- Photo Gallery -->
-    <div class="max-w-5xl mx-auto px-4 mt-4">
+    <div class="max-w-350 mx-auto px-6 mt-4">
       <div class="h-96 rounded-2xl overflow-hidden">
         <img
           :src="hotel.image"
@@ -79,9 +98,11 @@
     </div>
 
     <!-- Main Content -->
-    <div class="max-w-5xl mx-auto px-4 mt-8 grid grid-cols-3 gap-8">
+    <div
+      class="max-w-350 mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12"
+    >
       <!-- Left Column -->
-      <div class="col-span-2 space-y-8">
+      <div class="lg:col-span-2 space-y-8">
         <!-- Description -->
         <div>
           <h2 class="text-lg font-bold text-cyan-600 mb-2">
@@ -281,7 +302,7 @@
       <!-- Right Column: Booking Card -->
       <div class="col-span-1">
         <div
-          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sticky top-6"
+          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sticky top-24"
         >
           <div class="flex items-center justify-between mb-1">
             <div>
@@ -359,20 +380,20 @@
 
           <div class="mt-4 space-y-2 text-sm text-gray-600">
             <div class="flex justify-between">
-              <span>$580 × 6 nights</span>
-              <span class="font-medium text-gray-800">$3,480</span>
+              <span>${{ hotel.price }} × {{ nights }} nights</span>
+              <span class="font-medium text-gray-800">${{ subtotal }}</span>
             </div>
             <div class="flex justify-between">
               <span>Cleaning fee</span>
-              <span class="font-medium text-gray-800">$120</span>
+              <span class="font-medium text-gray-800">${{ cleaningFee }}</span>
             </div>
             <div class="flex justify-between">
               <span>Service fee</span>
-              <span class="font-medium text-gray-800">$85</span>
+              <span class="font-medium text-gray-800">${{ serviceFee }}</span>
             </div>
             <div class="border-t border-gray-100 pt-2 flex justify-between">
               <span class="font-bold text-gray-900">Total</span>
-              <span class="font-bold text-gray-900">$3,685</span>
+              <span class="font-bold text-gray-900">${{ total }}</span>
             </div>
           </div>
 
@@ -399,16 +420,30 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
-import { useRoute } from "vue-router";
+import { computed, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import hotelApi from "../../service/api/Hotel.js";
 
 const route = useRoute();
+const router = useRouter();
 const { hotels } = hotelApi.setup();
 
 const hotel = computed(() => {
   return hotels.value.find((h) => h.id === parseInt(route.params.id));
 });
+
+// --- Booking Calculation ---
+// In a real app, these would come from a date picker
+const nights = ref(6);
+const cleaningFee = ref(120);
+const serviceFee = ref(85);
+
+const subtotal = computed(() =>
+  hotel.value ? hotel.value.price * nights.value : 0,
+);
+const total = computed(
+  () => subtotal.value + cleaningFee.value + serviceFee.value,
+);
 
 const amenities = [
   {
@@ -484,5 +519,9 @@ const rooms = [
 
 function toggleWishlist() {
   if (hotel.value) hotel.value.wishlisted = !hotel.value.wishlisted;
+}
+
+function goBack() {
+  router.push("/hotels");
 }
 </script>
