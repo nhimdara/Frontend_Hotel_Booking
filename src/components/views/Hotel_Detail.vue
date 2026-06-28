@@ -421,11 +421,16 @@
 </template>
 
 <script setup>
+<<<<<<< HEAD
 
 import { computed, ref } from "vue";
 
 import { computed } from "vue";
 
+=======
+import { computed, ref } from "vue";
+  
+>>>>>>> 00e100ac75ca251d3841e25ce06d77ef214fbc35
 import { useRoute, useRouter } from "vue-router";
 import hotelApi from "../../service/api/Hotel.js";
 

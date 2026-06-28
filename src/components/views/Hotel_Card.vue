@@ -1,7 +1,7 @@
 <template>
   <div id="hotels" class="min-h-screen bg-slate-50 font-sans">
     <!-- Page Content -->
-    <div class="max-w-[1400px] mx-auto px-6 py-10">
+    <div class="max-w-350 mx-auto px-6 py-10">
       <button
         type="button"
         class="mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-700 hover:text-teal-800"
@@ -372,9 +372,9 @@
           <article
             v-for="property in recommended"
             :key="'rec-' + property.id"
-            class="group flex-shrink-0 w-80 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-lg flex flex-col"
+            class="group shrink-0 w-80 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-lg flex flex-col"
           >
-            <div class="relative aspect-[5/4] overflow-hidden">
+            <div class="relative aspect-5/4 overflow-hidden">
               <img
                 :src="property.image"
                 :alt="property.name"
@@ -618,14 +618,16 @@ watch(sortOption, () => {
 
 <style scoped>
 .line-clamp-1 {
-  display: -webkit-box;
+  display: -webkit-box;     
   -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
