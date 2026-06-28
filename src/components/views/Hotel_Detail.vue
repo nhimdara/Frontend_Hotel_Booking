@@ -373,6 +373,7 @@
           </div>
 
           <button
+            @click="reserveNow"
             class="w-full mt-4 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 rounded-xl transition text-sm"
           >
             Reserve Now
@@ -420,7 +421,11 @@
 </template>
 
 <script setup>
+<<<<<<< HEAD
 import { computed, ref } from "vue";
+=======
+import { computed } from "vue";
+>>>>>>> confirm
 import { useRoute, useRouter } from "vue-router";
 import hotelApi from "../../service/api/Hotel.js";
 
@@ -516,6 +521,15 @@ const rooms = [
       "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&q=80",
   },
 ];
+
+function reserveNow() {
+  router.push({
+    name: "confirm",
+    query: {
+      hotelId: hotel.value?.id,
+    },
+  });
+}
 
 function toggleWishlist() {
   if (hotel.value) hotel.value.wishlisted = !hotel.value.wishlisted;
