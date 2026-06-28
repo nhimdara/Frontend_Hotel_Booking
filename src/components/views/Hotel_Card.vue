@@ -239,7 +239,7 @@
               <button
                 type="button"
                 class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
-                @click="openProperty(property)"
+                @click="detail(property)"
               >
                 View Details
               </button>
@@ -466,6 +466,7 @@
                   </p>
                 </div>
                 <button
+                  @click="detail(property)"
                   type="button"
                   class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
                 >
@@ -481,10 +482,14 @@
 </template>
 
 <script setup>
+import { useRouter } from "vue-router";
 import { ref, computed, watch } from "vue";
 import hotelApi from "../../service/api/Hotel.js";
+import Hotel_Detail from "./Hotel_Detail.vue";
 
 const emit = defineEmits(["back-home"]);
+
+const router = useRouter();
 
 const ITEMS_PER_PAGE = 8;
 
@@ -594,6 +599,10 @@ function toggleWishlist(property) {
 function setFilter(filter) {
   activeFilter.value = filter;
   currentPage.value = 1;
+}
+
+function detail(property) {
+  router.push(`/hotel/${property.id}`);
 }
 
 function openProperty(property) {

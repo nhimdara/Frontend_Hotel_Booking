@@ -128,6 +128,7 @@
             <button
               type="button"
               class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
+              @click="viewDetails(stay)"
             >
               View Details
             </button>
@@ -139,10 +140,12 @@
 </template>
 
 <script setup>
+import { useRouter } from "vue-router";
 import { computed } from "vue";
 import hotelApi from "./../../service/api/Hotel.js";
 
 const emit = defineEmits(["show-hotels"]);
+const router = useRouter();
 
 const { hotels: stays } = hotelApi.setup();
 const displayedStays = computed(() => stays.value.slice(0, 4));
@@ -153,6 +156,10 @@ function toggleWishlist(stay) {
 
 function viewHotels() {
   emit("show-hotels");
+}
+
+function viewDetails(stay) {
+  router.push(`/hotel/${stay.id}`);
 }
 </script>
 
