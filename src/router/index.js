@@ -1,32 +1,119 @@
 // router/index.js
 import { createRouter, createWebHistory } from "vue-router";
+import PublicLayout from "../components/layout/PublicLayout.vue";
+import DashboardLayout from "../components/layout/DashboardLayout.vue";
 import Home_Page from "../components/views/Home_Page.vue";
 import Hotel_Card from "../components/views/Hotel_Card.vue";
 import Hotel_Detail from "../components/views/Hotel_Detail.vue";
 import Confirm_Page from "../components/views/Confirm_Page.vue";
+import Overview from "../components/dashboard/Overview.vue";
+import Booking from "../components/dashboard/Booking.vue";
+import Guests from "../components/dashboard/Guests.vue";
+import Room_Management from "../components/dashboard/Room_Management.vue";
+import Add_Room from "../components/dashboard/Add_Room.vue";
+import Update_Room from "../components/dashboard/Update_Room.vue";
+import Setting from "../components/dashboard/Setting.vue";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: "/",
-      name: "home",
-      component: Home_Page,
+      component: PublicLayout,
+      children: [
+        {
+          path: "",
+          name: "home",
+          component: Home_Page,
+        },
+        {
+          path: "hotels",
+          name: "hotels",
+          component: Hotel_Card,
+        },
+        {
+          path: "hotel/:id",
+          name: "hotel-detail",
+          component: Hotel_Detail,
+        },
+        {
+          path: "confirm",
+          name: "confirm",
+          component: Confirm_Page,
+        },
+      ],
     },
     {
-      path: "/hotels",
-      name: "hotels",
-      component: Hotel_Card,
+      path: "/dashboard",
+      component: DashboardLayout,
+      children: [
+        {
+          path: "",
+          name: "dashboard",
+          component: Overview,
+        },
+        {
+          path: "bookings",
+          name: "bookings",
+          component: Booking,
+        },
+        {
+          path: "guests",
+          name: "guests",
+          component: Guests,
+        },
+        {
+          path: "room-management",
+          name: "rooms",
+          component: Room_Management,
+        },
+        {
+          path: "room-management/add",
+          name: "room-add",
+          component: Add_Room,
+        },
+        {
+          path: "room-management/:id/edit",
+          name: "room-edit",
+          component: Update_Room,
+          props: (route) => ({ roomId: route.params.id }),
+        },
+        {
+          path: "settings",
+          name: "settings",
+          component: Setting,
+        },
+      ],
     },
     {
-      path: "/hotel/:id",
-      name: "hotel-detail",
-      component: Hotel_Detail,
+      path: "/overview",
+      redirect: "/dashboard",
     },
     {
-      path: "/confirm",
-      name: "confirm",
-      component: Confirm_Page,
+      path: "/bookings",
+      redirect: "/dashboard/bookings",
+    },
+    {
+      path: "/guests",
+      redirect: "/dashboard/guests",
+    },
+    {
+      path: "/room-management",
+      redirect: "/dashboard/room-management",
+    },
+    {
+      path: "/room-management/add",
+      redirect: "/dashboard/room-management/add",
+    },
+    {
+      path: "/room-management/:id/edit",
+      redirect: (to) => ({
+        path: `/dashboard/room-management/${to.params.id}/edit`,
+      }),
+    },
+    {
+      path: "/settings",
+      redirect: "/dashboard/settings",
     },
   ],
   scrollBehavior() {
