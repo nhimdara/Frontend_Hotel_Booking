@@ -2,7 +2,7 @@
   <div
     class="p-4 sm:p-6 bg-slate-50 min-h-screen font-sans antialiased text-slate-800"
   >
-    <div class="max-w-7xl mx-auto">
+    <div class="">
       <!-- Header -->
       <div>
         <h2 class="text-2xl font-bold text-slate-900 tracking-tight">
