@@ -6,6 +6,9 @@ import Home_Page from "../components/views/Home_Page.vue";
 import Hotel_Card from "../components/views/Hotel_Card.vue";
 import Hotel_Detail from "../components/views/Hotel_Detail.vue";
 import Confirm_Page from "../components/views/Confirm_Page.vue";
+import Login_Page from "../components/views/Login_Page.vue";
+import Register_Page from "../components/views/Register_Page.vue";
+import Contact_Page from "../components/views/Contact_Page.vue";
 import Overview from "../components/dashboard/Overview.vue";
 import Booking from "../components/dashboard/Booking.vue";
 import Guests from "../components/dashboard/Guests.vue";
@@ -13,6 +16,7 @@ import Room_Management from "../components/dashboard/Room_Management.vue";
 import Add_Room from "../components/dashboard/Add_Room.vue";
 import Update_Room from "../components/dashboard/Update_Room.vue";
 import Setting from "../components/dashboard/Setting.vue";
+import { getCurrentUser, isAdminUser } from "../service/auth.js";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -40,12 +44,31 @@ const router = createRouter({
           path: "confirm",
           name: "confirm",
           component: Confirm_Page,
+          meta: { requiresAuth: true },
+        },
+        {
+          path: "login",
+          name: "login",
+          component: Login_Page,
+          meta: { guestOnly: true },
+        },
+        {
+          path: "register",
+          name: "register",
+          component: Register_Page,
+          meta: { guestOnly: true },
+        },
+        {
+          path: "contact",
+          name: "contact",
+          component: Contact_Page,
         },
       ],
     },
     {
       path: "/dashboard",
       component: DashboardLayout,
+      meta: { requiresAuth: true, requiresAdmin: true },
       children: [
         {
           path: "",
@@ -119,6 +142,27 @@ const router = createRouter({
   scrollBehavior() {
     return { top: 0, behavior: "smooth" };
   },
+});
+
+router.beforeEach((to) => {
+  const user = getCurrentUser();
+
+  if (to.meta.requiresAuth && !user) {
+    return {
+      name: "login",
+      query: { redirect: to.fullPath },
+    };
+  }
+
+  if (to.meta.requiresAdmin && !isAdminUser()) {
+    return user ? { name: "hotels" } : { name: "login" };
+  }
+
+  if (to.meta.guestOnly && user) {
+    return user.role === "admin" ? { name: "dashboard" } : { name: "hotels" };
+  }
+
+  return true;
 });
 
 export default router;

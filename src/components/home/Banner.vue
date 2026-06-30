@@ -23,7 +23,7 @@
       </p>
 
       <h1
-        class="font-display text-4xl font-semibold leading-[1.08] text-white drop-shadow-sm xs:text-5xl sm:text-6xl lg:text-7xl"
+        class="font-display text-4xl font-semibold leading-[1.08] text-white drop-shadow-sm sm:text-6xl lg:text-7xl"
       >
         Find your next<br />
         peaceful retreat

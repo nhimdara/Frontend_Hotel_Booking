@@ -1,7 +1,7 @@
 <template>
   <div v-if="hotel" class="min-h-screen bg-gray-50 font-sans">
     <!-- Header / Title -->
-    <div class="max-w-350 mx-auto px-6 pt-6 pb-2">
+    <div class="mx-auto max-w-[1440px] px-4 pt-5 pb-2 sm:px-6 lg:px-10">
       <button
         @click="goBack"
         class="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-800 transition mb-4"
@@ -21,7 +21,7 @@
         </svg>
         Back to Hotels
       </button>
-      <div class="flex items-start justify-between">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <span
             v-if="hotel.badge"
@@ -30,7 +30,7 @@
           >
             ⭐ {{ hotel.badge.label }}
           </span>
-          <h1 class="text-3xl font-bold text-gray-900 leading-tight">
+          <h1 class="text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">
             {{ hotel.name }}
           </h1>
           <p class="text-sm text-gray-500 mt-1 flex items-center gap-1">
@@ -44,7 +44,7 @@
             {{ hotel.location }}
           </p>
         </div>
-        <div class="flex items-center gap-2 mt-1">
+        <div class="flex flex-wrap items-center gap-2 sm:mt-1 sm:shrink-0">
           <button
             class="flex items-center gap-1.5 border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 transition"
           >
@@ -87,8 +87,8 @@
     </div>
 
     <!-- Photo Gallery -->
-    <div class="max-w-350 mx-auto px-6 mt-4">
-      <div class="h-96 rounded-2xl overflow-hidden">
+    <div class="mx-auto max-w-[1440px] px-4 mt-4 sm:px-6 lg:px-10">
+      <div class="h-64 overflow-hidden rounded-2xl sm:h-80 lg:h-96">
         <img
           :src="hotel.image"
           :alt="hotel.name"
@@ -99,7 +99,7 @@
 
     <!-- Main Content -->
     <div
-      class="max-w-350 mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12"
+      class="mx-auto mt-8 grid max-w-[1440px] grid-cols-1 gap-8 px-4 sm:px-6 lg:grid-cols-3 lg:gap-12 lg:px-10"
     >
       <!-- Left Column -->
       <div class="lg:col-span-2 space-y-8">
@@ -137,7 +137,7 @@
           <h3 class="text-base font-bold text-gray-900 mb-4">
             Curated Amenities
           </h3>
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div
               v-for="amenity in amenities"
               :key="amenity.name"
@@ -212,7 +212,7 @@
                 Every sanctuary is uniquely curated for absolute serenity.
               </p>
             </div>
-            <div class="flex gap-1.5">
+            <div class="hidden gap-1.5 sm:flex">
               <button
                 class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition"
               >
@@ -250,7 +250,7 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-3 gap-3 mt-4">
+          <div class="grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2 xl:grid-cols-3">
             <div
               v-for="room in rooms"
               :key="room.name"
@@ -302,7 +302,7 @@
       <!-- Right Column: Booking Card -->
       <div class="col-span-1">
         <div
-          class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sticky top-24"
+          class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:sticky lg:top-24"
         >
           <div class="flex items-center justify-between mb-1">
             <div>

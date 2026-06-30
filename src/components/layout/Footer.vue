@@ -94,12 +94,12 @@
 
           <ul class="space-y-5">
             <li v-for="item in discover" :key="item">
-              <a
-                href="#"
+              <RouterLink
+                :to="item.to"
                 class="text-gray-400 hover:text-teal-400 transition duration-300"
               >
-                {{ item }}
-              </a>
+                {{ item.label }}
+              </RouterLink>
             </li>
           </ul>
         </div>
@@ -112,12 +112,12 @@
 
           <ul class="space-y-5">
             <li v-for="item in support" :key="item">
-              <a
-                href="#"
+              <RouterLink
+                :to="item.to"
                 class="text-gray-400 hover:text-teal-400 transition duration-300"
               >
-                {{ item }}
-              </a>
+                {{ item.label }}
+              </RouterLink>
             </li>
           </ul>
         </div>
@@ -198,16 +198,16 @@
 const year = new Date().getFullYear();
 
 const discover = [
-  "Our Story",
-  "Hotels & Resorts",
-  "Loyalty Program",
-  "Careers",
+  { label: "Our Story", to: "/" },
+  { label: "Hotels & Resorts", to: "/hotels" },
+  { label: "Loyalty Program", to: "/register" },
+  { label: "Careers", to: "/contact" },
 ];
 
 const support = [
-  "Help Center",
-  "Contact Us",
-  "Reservation Guide",
-  "Sitemap",
+  { label: "Help Center", to: "/contact" },
+  { label: "Contact Us", to: "/contact" },
+  { label: "Reservation Guide", to: "/hotels" },
+  { label: "Sitemap", to: "/" },
 ];
 </script>

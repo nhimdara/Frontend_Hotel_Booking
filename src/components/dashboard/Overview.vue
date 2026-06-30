@@ -109,7 +109,7 @@
     <!-- ── Revenue Performance Chart ── -->
     <div class="mt-6 bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-4 sm:p-6 shadow-sm">
       <!-- Chart header -->
-      <div class="flex flex-col xs:flex-row xs:items-start justify-between gap-3 mb-4 sm:mb-6">
+      <div class="flex flex-col justify-between gap-3 mb-4 sm:mb-6 sm:flex-row sm:items-start">
         <div>
           <h3 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
             <span class="inline-block w-1.5 h-5 rounded-full bg-gradient-to-b from-teal-400 to-emerald-400"></span>
@@ -118,7 +118,7 @@
           <p class="text-xs text-slate-400 mt-0.5 ml-4">Daily revenue fluctuations — opening, high, low, closing.</p>
         </div>
         <!-- Legend + toggle -->
-        <div class="flex flex-wrap items-center gap-3 ml-4 xs:ml-0">
+        <div class="flex flex-wrap items-center gap-3 ml-4 sm:ml-0">
           
           <div class="flex text-xs bg-slate-100/80 rounded-lg overflow-hidden border border-slate-200/60">
             <button

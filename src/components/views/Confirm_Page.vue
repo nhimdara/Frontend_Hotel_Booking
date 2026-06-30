@@ -1,9 +1,9 @@
 <template>
   <div class="min-h-screen bg-[#f5f9f9] font-sans antialiased">
     <!-- ── PAGE HEADER ───────────────────────────────────────── -->
-    <div class="max-w-6xl mx-auto px-8 mt-7">
+    <div class="mx-auto max-w-6xl px-4 mt-6 sm:px-6 lg:px-8 lg:mt-7">
       <h1
-        class="font-serif text-4xl font-normal text-[#111c1c] tracking-tight leading-none"
+        class="font-serif text-3xl font-normal leading-none tracking-tight text-[#111c1c] sm:text-4xl"
       >
         Confirm & Pay
       </h1>
@@ -14,7 +14,7 @@
 
     <!-- ── BODY GRID ─────────────────────────────────────────── -->
     <div
-      class="max-w-6xl mx-auto px-8 mt-8 pb-20 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 items-start"
+      class="mx-auto mt-6 grid max-w-6xl grid-cols-1 items-start gap-6 px-4 pb-16 sm:px-6 lg:mt-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8 lg:px-8 lg:pb-20"
     >
       <!-- LEFT COLUMN -->
       <div class="space-y-5">
@@ -23,7 +23,7 @@
           class="bg-white border border-[#dde8e8] rounded-2xl shadow-sm overflow-hidden"
         >
           <div
-            class="px-7 py-5 border-b border-[#dde8e8] flex items-center gap-3.5"
+            class="flex items-center gap-3.5 border-b border-[#dde8e8] px-5 py-4 sm:px-7 sm:py-5"
           >
             <div
               class="w-8 h-8 rounded-full bg-[#0d5c5c] text-white text-[13px] font-semibold flex items-center justify-center flex-shrink-0"
@@ -35,7 +35,7 @@
               >Guest Information</span
             >
           </div>
-          <div class="p-7 space-y-4">
+          <div class="space-y-4 p-5 sm:p-7">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label
@@ -89,7 +89,7 @@
           class="bg-white border border-[#dde8e8] rounded-2xl shadow-sm overflow-hidden"
         >
           <div
-            class="px-7 py-5 border-b border-[#dde8e8] flex items-center gap-3.5"
+            class="flex flex-wrap items-center gap-3.5 border-b border-[#dde8e8] px-5 py-4 sm:px-7 sm:py-5"
           >
             <div
               class="w-8 h-8 rounded-full bg-[#0d5c5c] text-white text-[13px] font-semibold flex items-center justify-center flex-shrink-0"
@@ -101,7 +101,7 @@
               >Scan to Pay</span
             >
             <span
-              class="ml-auto flex items-center gap-1.5 text-[12px] font-medium text-[#148080]"
+              class="flex items-center gap-1.5 text-[12px] font-medium text-[#148080] sm:ml-auto"
             >
               <span class="relative flex h-2 w-2">
                 <span
@@ -115,19 +115,19 @@
             </span>
           </div>
 
-          <div class="p-7">
+          <div class="p-5 sm:p-7">
             <div
               class="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-7 items-center"
             >
               <!-- QR block -->
               <div class="mx-auto sm:mx-0 relative">
                 <div
-                  class="p-5 border-[1.5px] border-[#dde8e8] rounded-2xl bg-white"
+                  class="p-4 border-[1.5px] border-[#dde8e8] rounded-2xl bg-white sm:p-5"
                 >
                   <svg
                     viewBox="0 0 120 120"
                     xmlns="http://www.w3.org/2000/svg"
-                    class="w-48 h-48"
+                    class="h-40 w-40 sm:h-48 sm:w-48"
                   >
                     <rect x="8" y="8" width="30" height="30" rx="4" fill="#0d5c5c" />
                     <rect x="12" y="12" width="22" height="22" rx="2" fill="#fff" />
@@ -353,7 +353,7 @@
           </div>
 
           <!-- Photo thumbnails (uses hotel.images if available, else hero image, else falls back) -->
-          <div v-if="photoThumbs.length" class="grid grid-cols-4 gap-1.5 p-3 pb-0">
+          <div v-if="photoThumbs.length" class="grid grid-cols-2 gap-1.5 p-3 pb-0 sm:grid-cols-4">
             <div
               v-for="(thumb, i) in photoThumbs"
               :key="i"
@@ -371,7 +371,7 @@
           <!-- Booking details -->
           <div class="p-6 space-y-4">
             <!-- Dates -->
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <p class="text-[11px] font-semibold tracking-widest uppercase text-[#94a6a6] mb-1">
                   Check-in
@@ -477,10 +477,12 @@
 import { ref, computed, onMounted, onUnmounted, watch, h } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import hotelApi from "../../service/api/Hotel.js";
+import { useAuth } from "../../service/auth.js";
 
 const route = useRoute();
 const router = useRouter();
 const { hotels, fetchHotels } = hotelApi.setup();
+const auth = useAuth();
 
 // ── LOADING STATE ────────────────────────────────────────────
 // hotels.value can be empty on a hard refresh / direct link because
@@ -655,7 +657,11 @@ onMounted(() => {
 onUnmounted(() => clearInterval(timerInterval));
 
 // ── FORM STATE ───────────────────────────────────────────────
-const form = ref({ name: "", email: "", phone: "" });
+const form = ref({
+  name: auth.user.value?.fullName || "",
+  email: auth.user.value?.email || "",
+  phone: "",
+});
 
 // ── TRUST BADGES ─────────────────────────────────────────────
 const IconShield = {

@@ -21,13 +21,13 @@
         <div class="flex items-center justify-between gap-3 mb-3">
           <div class="flex items-center gap-3">
             <img
-              src="https://i.pravatar.cc/40?img=12"
-              alt="Alex Rivera"
+              :src="user?.avatar"
+              :alt="user?.fullName"
               class="w-10 h-10 rounded-full object-cover ring-2 ring-teal-400 ring-offset-1 shrink-0"
             />
             <div class="leading-tight">
-              <p class="text-sm font-semibold text-slate-800">Alex Rivera</p>
-              <p class="text-xs text-slate-500">General Manager</p>
+              <p class="text-sm font-semibold text-slate-800">{{ user?.fullName }}</p>
+              <p class="text-xs text-slate-500">{{ user?.title }}</p>
             </div>
           </div>
           <!-- Close button, mobile/tablet only -->
@@ -89,6 +89,13 @@
 
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-slate-200">
+        <button
+          type="button"
+          class="mb-3 flex w-full items-center justify-center rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
+          @click="handleLogout"
+        >
+          Logout
+        </button>
         <p class="text-[10px] text-slate-400 text-center">HotelAdmin v2.1</p>
       </div>
     </aside>
@@ -176,7 +183,8 @@
 
           <!-- Avatar -->
           <img
-            src="https://i.pravatar.cc/32?img=12"
+            :src="user?.avatar"
+            :alt="user?.fullName"
             class="w-8 h-8 rounded-full ring-2 ring-teal-400 cursor-pointer shrink-0"
           />
         </div>
@@ -192,12 +200,22 @@
 
 <script setup>
 import { h, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useAuth } from "../../service/auth.js";
 
 const isMobileMenuOpen = ref(false);
+const router = useRouter();
+const auth = useAuth();
+const user = auth.user;
 
 function handleNavigate(navigate) {
   navigate();
   isMobileMenuOpen.value = false;
+}
+
+function handleLogout() {
+  auth.logout();
+  router.push("/");
 }
 
 // Inline icon components (no extra deps needed)
