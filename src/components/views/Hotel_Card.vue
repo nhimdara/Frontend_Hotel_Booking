@@ -136,6 +136,22 @@
 
       <!-- Property Grid -->
       <div
+        v-if="loading"
+        class="mt-10 rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-500"
+      >
+        Loading hotels...
+      </div>
+      <div
+        v-else-if="error"
+        class="mt-10 rounded-2xl border border-rose-200 bg-rose-50 p-10 text-center"
+      >
+        <h3 class="text-lg font-semibold text-rose-700">
+          Could not load hotels
+        </h3>
+        <p class="mt-2 text-sm text-rose-500">{{ error }}</p>
+      </div>
+      <div
+        v-else
         class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       >
         <article
@@ -483,15 +499,19 @@
 
 <script setup>
 import { useRouter } from "vue-router";
-import { ref, computed, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import hotelApi from "../../service/api/Hotel.js";
-import Hotel_Detail from "./Hotel_Detail.vue";
 
 const router = useRouter();
 
 const ITEMS_PER_PAGE = 8;
 
-const { hotels: properties } = hotelApi.setup();
+const {
+  hotels: properties,
+  loading,
+  error,
+  fetchHotels,
+} = hotelApi.setup();
 
 const filters = [
   { label: "Top Rated", value: "top-rated" },
@@ -613,6 +633,10 @@ function closeProperty() {
 
 watch(sortOption, () => {
   currentPage.value = 1;
+});
+
+onMounted(() => {
+  fetchHotels({ per_page: 100 }).catch(() => {});
 });
 </script>
 

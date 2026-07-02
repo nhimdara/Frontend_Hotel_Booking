@@ -408,31 +408,50 @@
     <div class="h-16"></div>
   </div>
   <div
+    v-else-if="loading"
+    class="min-h-screen bg-gray-50 font-sans flex items-center justify-center"
+  >
+    <div class="text-center">
+      <h1 class="text-3xl font-bold text-gray-900">Loading hotel...</h1>
+    </div>
+  </div>
+  <div
     v-else
     class="min-h-screen bg-gray-50 font-sans flex items-center justify-center"
   >
     <div class="text-center">
-      <h1 class="text-3xl font-bold text-gray-900">Hotel not found</h1>
+      <h1 class="text-3xl font-bold text-gray-900">
+        {{ error ? "Could not load hotel" : "Hotel not found" }}
+      </h1>
       <p class="text-sm text-gray-500 mt-2">
-        The hotel you are looking for does not exist.
+        {{ error || "The hotel you are looking for does not exist." }}
       </p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import { useRoute, useRouter } from "vue-router";
 import hotelApi from "../../service/api/Hotel.js";
 
 const route = useRoute();
 const router = useRouter();
-const { hotels } = hotelApi.setup();
+const { hotels, loading, error, fetchHotel } = hotelApi.setup();
 
-const hotel = computed(() => {
-  return hotels.value.find((h) => h.id === parseInt(route.params.id));
-});
+const hotel = ref(null);
+
+async function loadHotel() {
+  const hotelId = Number(route.params.id);
+  hotel.value = hotels.value.find((h) => h.id === hotelId) || null;
+
+  try {
+    hotel.value = await fetchHotel(hotelId);
+  } catch {
+    hotel.value = null;
+  }
+}
 
 // --- Booking Calculation ---
 // In a real app, these would come from a date picker
@@ -480,7 +499,7 @@ const amenities = [
   },
 ];
 
-const rooms = [
+const fallbackRooms = [
   {
     name: "Beachfront Sanctuary",
     desc: "Private beach lagoon",
@@ -519,6 +538,22 @@ const rooms = [
   },
 ];
 
+const rooms = computed(() => {
+  if (!hotel.value?.rooms?.length) return fallbackRooms;
+
+  return hotel.value.rooms.map((room) => ({
+    name: room.name || room.type || room.room_type || "Room",
+    desc: room.description || room.desc || "Comfortable stay",
+    size: room.size || room.area || "N/A",
+    bed: room.bed || room.bed_type || "Bed",
+    max: room.max_guests || room.max || room.capacity || 2,
+    price: Number(room.price || room.price_per_night || hotel.value.price || 0),
+    badge: room.badge || null,
+    badgeColor: room.badgeColor || "bg-blue-500",
+    image: room.image || room.image_url || hotel.value.image,
+  }));
+});
+
 function reserveNow() {
   router.push({
     name: "confirm",
@@ -535,4 +570,7 @@ function toggleWishlist() {
 function goBack() {
   router.push("/hotels");
 }
+
+onMounted(loadHotel);
+watch(() => route.params.id, loadHotel);
 </script>

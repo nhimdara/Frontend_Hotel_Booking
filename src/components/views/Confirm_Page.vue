@@ -111,7 +111,7 @@
                   class="relative inline-flex rounded-full h-2 w-2 bg-[#148080]"
                 ></span>
               </span>
-              Waiting for scan
+              {{ paymentStatusLabel }}
             </span>
           </div>
 
@@ -124,7 +124,14 @@
                 <div
                   class="p-5 border-[1.5px] border-[#dde8e8] rounded-2xl bg-white"
                 >
+                  <img
+                    v-if="paymentQrUrl"
+                    :src="paymentQrUrl"
+                    alt="Payment QR code"
+                    class="w-48 h-48 object-contain"
+                  />
                   <svg
+                    v-else
                     viewBox="0 0 120 120"
                     xmlns="http://www.w3.org/2000/svg"
                     class="w-48 h-48"
@@ -210,6 +217,33 @@
                     app at the code. We'll confirm automatically the moment
                     payment is authorized — no need to refresh.
                   </p>
+                </div>
+
+                <div
+                  v-if="paymentError"
+                  class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] font-medium text-rose-700"
+                >
+                  {{ paymentError }}
+                </div>
+
+                <div class="flex flex-wrap justify-center sm:justify-start gap-2">
+                  <button
+                    type="button"
+                    class="rounded-xl bg-[#0d5c5c] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#0a4a4a] disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="isPaymentLoading || !hotel"
+                    @click="startPayment"
+                  >
+                    {{ payment ? "Refresh payment QR" : "Start secure payment" }}
+                  </button>
+                  <button
+                    v-if="payment?.id && !['paid', 'authorized', 'completed'].includes(payment.status)"
+                    type="button"
+                    class="rounded-xl border border-[#dde8e8] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#0d5c5c] transition hover:bg-[#f2fafa] disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="isPaymentLoading"
+                    @click="authorizePayment"
+                  >
+                    Simulate paid
+                  </button>
                 </div>
 
                 <ol class="space-y-2 text-[13px] text-[#3a4a4a]">
@@ -477,6 +511,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, h } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import hotelApi from "../../service/api/Hotel.js";
+import { bookingApi, paymentApi } from "../../service/api/client.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -487,6 +522,11 @@ const { hotels, fetchHotels } = hotelApi.setup();
 // the list hasn't loaded yet. We track that explicitly instead of
 // silently rendering placeholder data.
 const isLoading = ref(true);
+const isPaymentLoading = ref(false);
+const paymentError = ref("");
+const booking = ref(null);
+const payment = ref(null);
+let paymentPollInterval = null;
 
 // ── HOTEL ID (read once, then keep an internal ref in case query changes) ──
 const hotelId = computed(() => {
@@ -503,6 +543,10 @@ const checkIn = computed(() => route.query.checkIn || null);
 const checkOut = computed(() => route.query.checkOut || null);
 const adults = computed(() => parseInt(route.query.adults, 10) || 2);
 const children = computed(() => parseInt(route.query.children, 10) || 0);
+const bookingId = computed(() => {
+  const parsed = parseInt(route.query.bookingId, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+});
 
 const hotel = computed(() => {
   if (!hotelId.value) return null;
@@ -525,6 +569,10 @@ async function loadHotelData() {
   } finally {
     isLoading.value = false;
   }
+
+  if (bookingId.value && !payment.value) {
+    startPayment();
+  }
 }
 
 onMounted(loadHotelData);
@@ -539,6 +587,110 @@ watch(
 
 function goBack() {
   router.push({ name: "hotels" }); // adjust route name to match your router config
+}
+
+function dateOffset(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+const paymentQrUrl = computed(() => payment.value?.qr_code_payload || "");
+const paymentStatusLabel = computed(() => {
+  if (isPaymentLoading.value) return "Preparing payment";
+  if (["paid", "authorized", "completed"].includes(payment.value?.status)) {
+    return "Payment confirmed";
+  }
+  if (payment.value?.status) return `Payment ${payment.value.status}`;
+  return "Waiting for scan";
+});
+
+function applyPaymentResponse(data) {
+  booking.value = data?.booking || booking.value;
+  payment.value = data?.payment || payment.value;
+
+  if (Number.isFinite(data?.seconds_remaining)) {
+    totalSeconds.value = data.seconds_remaining;
+  }
+}
+
+async function ensureBooking() {
+  if (bookingId.value) return { id: bookingId.value };
+  if (booking.value?.id) return booking.value;
+
+  const data = await bookingApi.create({
+    hotel_id: hotelId.value,
+    check_in: checkIn.value || dateOffset(1),
+    check_out: checkOut.value || dateOffset(1 + nights.value),
+    guests: adults.value + children.value,
+    room_type: route.query.roomType || "suite",
+  });
+
+  booking.value = data.booking;
+  return data.booking;
+}
+
+async function startPayment() {
+  paymentError.value = "";
+  isPaymentLoading.value = true;
+
+  try {
+    const activeBooking = await ensureBooking();
+    const data = await paymentApi.initiate(activeBooking.id, "qr_scan");
+    applyPaymentResponse(data);
+    startPaymentPolling();
+  } catch (err) {
+    paymentError.value = err.message || "Could not start payment.";
+  } finally {
+    isPaymentLoading.value = false;
+  }
+}
+
+async function refreshPaymentStatus() {
+  if (!payment.value?.id) return;
+
+  try {
+    const data = await paymentApi.status(payment.value.id);
+    payment.value = { ...payment.value, status: data.status };
+
+    if (Number.isFinite(data.seconds_remaining)) {
+      totalSeconds.value = data.seconds_remaining;
+    }
+
+    if (["paid", "authorized", "completed", "failed", "expired"].includes(data.status)) {
+      stopPaymentPolling();
+    }
+  } catch (err) {
+    paymentError.value = err.message || "Could not refresh payment status.";
+    stopPaymentPolling();
+  }
+}
+
+function startPaymentPolling() {
+  stopPaymentPolling();
+  paymentPollInterval = setInterval(refreshPaymentStatus, 5000);
+}
+
+function stopPaymentPolling() {
+  if (!paymentPollInterval) return;
+  clearInterval(paymentPollInterval);
+  paymentPollInterval = null;
+}
+
+async function authorizePayment() {
+  if (!payment.value?.id) return;
+  paymentError.value = "";
+  isPaymentLoading.value = true;
+
+  try {
+    const data = await paymentApi.authorize(payment.value.id);
+    applyPaymentResponse(data);
+    stopPaymentPolling();
+  } catch (err) {
+    paymentError.value = err.message || "Could not authorize payment.";
+  } finally {
+    isPaymentLoading.value = false;
+  }
 }
 
 // ── NIGHTS (computed from real dates if present, else fallback) ────
@@ -652,7 +804,10 @@ onMounted(() => {
   }, 1000);
 });
 
-onUnmounted(() => clearInterval(timerInterval));
+onUnmounted(() => {
+  clearInterval(timerInterval);
+  stopPaymentPolling();
+});
 
 // ── FORM STATE ───────────────────────────────────────────────
 const form = ref({ name: "", email: "", phone: "" });
