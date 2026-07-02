@@ -2,7 +2,7 @@
   <div
     class="p-4 sm:p-6 bg-slate-50 min-h-screen font-sans antialiased text-slate-800"
   >
-    <div class="max-w-7xl mx-auto">
+    <div class="">
       <!-- Header -->
       <div>
         <h2 class="text-2xl font-bold text-slate-900 tracking-tight">
@@ -55,7 +55,7 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-2 gap-5 mt-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
           <div>
             <label
               class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5"
@@ -245,7 +245,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 mt-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
           <button
             type="button"
             class="flex items-center justify-between gap-3 text-left bg-white border border-slate-200 rounded-xl px-4 py-3.5 hover:bg-slate-50 transition-colors"
@@ -352,16 +352,20 @@
 
 <script setup>
 import { h, reactive } from "vue";
+import { useAuth } from "../../service/auth.js";
 
-// --- Mock data (inline — swap for a real API call later) ---
+const auth = useAuth();
+
+// --- Profile data from local auth state; swap auth.js for a real API later. ---
 const profile = {
-  fullName: "Alex Rivera",
-  email: "alex.rivera@grandplaza.com",
-  role: "General Manager (Admin)",
-  timezone: "Eastern Standard Time (EST)",
+  fullName: auth.user.value?.fullName || "Admin User",
+  email: auth.user.value?.email || "admin@stayeasy.com",
+  role: auth.user.value?.role === "admin" ? "Administrator" : "Guest",
+  timezone: "Indochina Time (ICT)",
 };
 
 const timezoneOptions = [
+  "Indochina Time (ICT)",
   "Eastern Standard Time (EST)",
   "Central Standard Time (CST)",
   "Mountain Standard Time (MST)",
@@ -403,8 +407,11 @@ const security = {
 const form = reactive({ ...profile });
 
 function saveProfile() {
-  // Wire this up to a real API call later.
-  console.log("Saving profile:", { ...form });
+  auth.updateProfile({
+    fullName: form.fullName,
+    email: form.email,
+    title: auth.user.value?.role === "admin" ? "Hotel Administrator" : "StayEasy Member",
+  });
 }
 
 // --- Alert preference toggles ---

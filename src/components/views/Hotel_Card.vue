@@ -1,7 +1,7 @@
 <template>
   <div id="hotels" class="min-h-screen bg-slate-50 font-sans">
     <!-- Page Content -->
-    <div class="max-w-350 mx-auto px-6 py-10">
+    <div class="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
       <button
         type="button"
         class="mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-700 hover:text-teal-800"
@@ -26,7 +26,7 @@
 
       <!-- Header -->
       <div
-        class="mb-12 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between"
+        class="mb-10 flex flex-col gap-6 lg:mb-12 lg:flex-row lg:items-end lg:justify-between"
       >
         <!-- Left -->
         <div>
@@ -38,7 +38,7 @@
             </span>
           </div>
           <h1
-            class="text-4xl lg:text-5xl font-bold tracking-tight text-slate-900"
+            class="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl"
           >
             Discover Your Perfect Stay
           </h1>
@@ -53,9 +53,9 @@
         </div>
 
         <!-- Right -->
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           <div
-            class="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm"
+            class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm sm:px-6 sm:py-5"
           >
             <p class="text-3xl font-bold text-slate-900">
               {{ filteredProperties.length }}
@@ -63,13 +63,13 @@
             <p class="mt-1 text-sm text-slate-500">Matches</p>
           </div>
           <div
-            class="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm"
+            class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm sm:px-6 sm:py-5"
           >
             <p class="text-3xl font-bold text-slate-900">${{ averagePrice }}</p>
             <p class="mt-1 text-sm text-slate-500">Avg. Price</p>
           </div>
           <div
-            class="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm"
+            class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm sm:px-6 sm:py-5"
           >
             <p class="text-3xl font-bold text-slate-900">
               {{ averageRating }}★
@@ -80,11 +80,11 @@
       </div>
       <!-- Filter Bar -->
       <div
-        class="border-b border-slate-200 py-3 pb-10 flex items-center gap-3 flex-wrap"
+        class="flex items-center gap-3 overflow-x-auto border-b border-slate-200 py-3 pb-8 sm:flex-wrap sm:overflow-visible sm:pb-10"
       >
         <button
           @click="setFilter('all')"
-          class="flex items-center gap-2 bg-teal-800 text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-teal-900 transition"
+          class="flex shrink-0 items-center gap-2 rounded-full bg-teal-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-900"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -107,7 +107,7 @@
           v-for="filter in filters"
           :key="filter.value"
           @click="setFilter(filter.value)"
-          class="text-sm border rounded-full px-4 py-1.5 transition"
+          class="shrink-0 rounded-full border px-4 py-1.5 text-sm transition"
           :class="
             activeFilter === filter.value
               ? 'border-teal-800 bg-teal-50 text-teal-900'
@@ -117,14 +117,14 @@
           {{ filter.label }}
         </button>
 
-        <div class="ml-auto flex items-center gap-2">
+        <div class="flex shrink-0 items-center gap-2 sm:ml-auto">
           <span
             class="text-xs font-medium uppercase tracking-widest text-slate-400"
             >Sort:</span
           >
           <select
             v-model="sortOption"
-            class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-600"
           >
             <option value="recommended">Recommended</option>
             <option value="price-low">Price: Low to High</option>
@@ -388,7 +388,7 @@
           <article
             v-for="property in recommended"
             :key="'rec-' + property.id"
-            class="group shrink-0 w-80 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-lg flex flex-col"
+            class="group flex w-[min(20rem,82vw)] shrink-0 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-lg sm:w-80"
           >
             <div class="relative aspect-5/4 overflow-hidden">
               <img

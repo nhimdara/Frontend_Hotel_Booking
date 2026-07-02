@@ -1,18 +1,18 @@
 <template>
   <section
-    class="relative overflow-hidden bg-gradient-to-b from-white via-gray-50 to-white py-24"
+    class="relative overflow-hidden bg-gradient-to-b from-white via-gray-50 to-white py-14 sm:py-20 lg:py-24"
   >
     <!-- Background Decoration -->
     <div
-      class="absolute -top-24 -right-24 w-80 h-80 bg-teal-100 rounded-full blur-3xl opacity-30"
+      class="absolute -top-24 -right-24 h-56 w-56 rounded-full bg-teal-100 opacity-30 blur-3xl sm:h-80 sm:w-80"
     ></div>
 
     <div
-      class="absolute -bottom-20 -left-20 w-72 h-72 bg-cyan-100 rounded-full blur-3xl opacity-20"
+      class="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-cyan-100 opacity-20 blur-3xl sm:h-72 sm:w-72"
     ></div>
 
     <div class="relative max-w-7xl mx-auto px-6 lg:px-8">
-      <div class="grid lg:grid-cols-2 gap-20 items-center">
+      <div class="grid items-center gap-10 lg:grid-cols-2 lg:gap-20">
         <!-- LEFT CONTENT -->
         <div>
           <p
@@ -22,24 +22,24 @@
           </p>
 
           <h2
-            class="mt-5 text-4xl md:text-5xl xl:text-6xl font-bold leading-tight text-gray-900"
+            class="mt-5 text-3xl font-bold leading-tight text-gray-900 sm:text-4xl md:text-5xl xl:text-6xl"
           >
             Seamless stays
             <span class="block text-teal-700">for modern minds.</span>
           </h2>
 
-          <p class="mt-8 text-lg text-gray-500 leading-9 max-w-xl">
+          <p class="mt-5 max-w-xl text-base leading-7 text-gray-500 sm:mt-8 sm:text-lg sm:leading-9">
             Experience thoughtfully designed spaces, effortless booking, and
             exceptional hospitality that lets you focus on work, relaxation, and
             unforgettable travel experiences.
           </p>
 
           <!-- FEATURES -->
-          <div class="mt-12 space-y-5">
+          <div class="mt-8 space-y-4 sm:mt-12 sm:space-y-5">
             <div
               v-for="(item, index) in promises"
               :key="index"
-              class="flex items-start gap-4 p-5 rounded-2xl bg-white shadow-sm hover:shadow-xl transition-all duration-300"
+                class="flex items-start gap-4 rounded-2xl bg-white p-4 shadow-sm transition-all duration-300 hover:shadow-xl sm:p-5"
             >
               <!-- ICON -->
               <div
@@ -74,10 +74,10 @@
         </div>
 
         <!-- RIGHT IMAGE GRID -->
-        <div class="grid grid-cols-2 gap-5">
+        <div class="grid grid-cols-2 gap-3 sm:gap-5">
           <!-- Image 1 -->
           <div
-            class="relative overflow-hidden rounded-3xl h-64 shadow-xl group"
+            class="group relative h-44 overflow-hidden rounded-2xl shadow-xl sm:h-64 sm:rounded-3xl"
           >
             <img
               :src="images[0]"
@@ -91,7 +91,7 @@
 
           <!-- Image 2 (tall) -->
           <div
-            class="relative overflow-hidden rounded-3xl row-span-2 h-[540px] shadow-xl group"
+            class="group relative row-span-2 h-[380px] overflow-hidden rounded-2xl shadow-xl sm:h-[540px] sm:rounded-3xl"
           >
             <img
               :src="images[1]"
@@ -105,7 +105,7 @@
 
           <!-- Image 3 -->
           <div
-            class="relative overflow-hidden rounded-3xl h-64 shadow-xl group"
+            class="group relative h-44 overflow-hidden rounded-2xl shadow-xl sm:h-64 sm:rounded-3xl"
           >
             <img
               :src="images[2]"
@@ -119,7 +119,7 @@
 
           <!-- Image 4 -->
           <div
-            class="relative overflow-hidden rounded-3xl h-64 shadow-xl group col-span-2 lg:col-span-1"
+            class="group relative col-span-2 h-44 overflow-hidden rounded-2xl shadow-xl sm:h-64 sm:rounded-3xl lg:col-span-1"
           >
             <img
               :src="images[3]"

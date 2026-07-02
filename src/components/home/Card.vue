@@ -1,6 +1,6 @@
 <template>
-  <section class="mx-auto max-w-[1440px] px-6 py-20 lg:px-12">
-    <div class="mb-10 flex items-end justify-between">
+  <section class="mx-auto max-w-[1440px] px-4 py-14 sm:px-6 sm:py-20 lg:px-12">
+    <div class="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h2
           class="font-display text-3xl font-semibold text-slate-900 sm:text-4xl"
@@ -119,7 +119,7 @@
 
           <!-- Price + Button -->
           <div
-            class="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4"
+            class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <p class="text-base font-semibold text-teal-800">
               ${{ stay.price }}
@@ -127,7 +127,7 @@
             </p>
             <button
               type="button"
-              class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
+              class="w-full shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95 sm:w-auto"
               @click="viewDetails(stay)"
             >
               View Details
