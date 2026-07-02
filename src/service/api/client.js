@@ -11,8 +11,14 @@ export function jsonHeaders(token = localStorage.getItem("token")) {
 
 export async function apiFetch(path, options = {}) {
   const isFormData = options.body instanceof FormData;
+  const token = localStorage.getItem("token");
   const headers = {
-    ...(isFormData ? { Accept: "application/json" } : jsonHeaders()),
+    ...(isFormData
+      ? {
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        }
+      : jsonHeaders(token)),
     ...(options.headers || {}),
   };
 
@@ -130,8 +136,52 @@ export const adminApi = {
     if (hotelId) params.set("hotel_id", hotelId);
     return apiFetch(`/admin/dashboard/recent-bookings?${params}`);
   },
+  bookings(hotelId) {
+    const query = hotelId ? `?hotel_id=${hotelId}` : "";
+    return apiFetch(`/admin/bookings${query}`);
+  },
   bookingsSummary(hotelId) {
     const query = hotelId ? `?hotel_id=${hotelId}` : "";
     return apiFetch(`/admin/dashboard/bookings-summary${query}`);
+  },
+};
+
+export const roomApi = {
+  list(params = {}) {
+    const query = new URLSearchParams(params);
+    return apiFetch(`/admin/rooms${query.toString() ? `?${query}` : ""}`);
+  },
+  show(id) {
+    return apiFetch(`/admin/rooms/${id}`);
+  },
+  create(payload) {
+    if (payload instanceof FormData) {
+      return apiFetch("/admin/rooms", {
+        method: "POST",
+        body: payload,
+      });
+    }
+
+    return apiFetch("/admin/rooms", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  update(id, payload) {
+    if (payload instanceof FormData) {
+      payload.append("_method", "PUT");
+      return apiFetch(`/admin/rooms/${id}`, {
+        method: "POST",
+        body: payload,
+      });
+    }
+
+    return apiFetch(`/admin/rooms/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+  remove(id) {
+    return apiFetch(`/admin/rooms/${id}`, { method: "DELETE" });
   },
 };

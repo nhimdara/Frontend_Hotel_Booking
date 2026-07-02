@@ -10,7 +10,7 @@ const seededUsers = [
     id: "admin-1",
     fullName: "Alex Rivera",
     email: "admin@stayeasy.com",
-    password: "admin123",
+    password: "password",
     role: "admin",
     title: "General Manager",
     avatar: "https://i.pravatar.cc/80?img=12",
@@ -118,6 +118,32 @@ export function hasApiToken() {
   return Boolean(getAuthToken());
 }
 
+export function clearApiToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  state.token = null;
+}
+
+export async function ensureApiToken({ refresh = false } = {}) {
+  const email = state.user?.email?.toLowerCase();
+  const existingToken = getAuthToken();
+  if (existingToken && (!refresh || email !== seededUsers[0].email)) return existingToken;
+
+  if (email !== seededUsers[0].email) return "";
+
+  const data = await authApi.login({
+    email,
+    password: seededUsers[0].password,
+  });
+
+  const token = persistAuthToken(data);
+  persistSession({
+    ...state.user,
+    ...normalizeApiUser(userFromResponse(data)),
+  });
+
+  return token;
+}
+
 async function login(email, password) {
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -131,6 +157,16 @@ async function login(email, password) {
 
     return persistSession(normalizeApiUser(userFromResponse(data)));
   } catch (err) {
+    if (normalizedEmail === seededUsers[0].email && password === "admin123") {
+      const data = await authApi.login({
+        email: normalizedEmail,
+        password: seededUsers[0].password,
+      });
+
+      persistAuthToken(data);
+      return persistSession(normalizeApiUser(userFromResponse(data)));
+    }
+
     const user = readUsers().find(
       (item) =>
         item.email.toLowerCase() === normalizedEmail && item.password === password,

@@ -393,7 +393,7 @@
 
 <script setup>
 import { reactive, ref, computed, watch, onMounted } from "vue";
-import { rooms as roomInventory } from "../../service/api/Data_room.js";
+import { fetchRoom, updateRoom } from "../../service/api/rooms.js";
 
 // `roomId` lets this component fetch its own data; `room` lets a parent pass
 // already-loaded data directly (e.g. from a list it already fetched). At
@@ -494,32 +494,7 @@ async function loadRoom() {
 }
 
 async function fetchRoomById(id) {
-  const inventoryRoom = roomInventory.find(
-    (room) => String(room.id) === String(id),
-  );
-
-  if (inventoryRoom) {
-    const floorNumber = inventoryRoom.floor?.replace(/\D/g, "") || "";
-    const baseRate = 180 + (Number(inventoryRoom.roomNumber) % 7) * 20;
-    const maxOccupancy = inventoryRoom.roomType?.includes("Suite") ? 4 : 2;
-
-    return {
-      id: inventoryRoom.id,
-      roomName: inventoryRoom.roomNumber,
-      roomType: inventoryRoom.roomType,
-      floorNumber,
-      wing: "Main Wing",
-      baseRate,
-      maxOccupancy,
-      description: `${inventoryRoom.roomType} on ${inventoryRoom.floor}. Designed for comfort and a relaxing stay.`,
-      media: [],
-    };
-  }
-
-  console.warn(
-    "Room not found in mock inventory, using fallback values for id: " + id,
-  );
-  return { id };
+  return fetchRoom(id);
 }
 
 onMounted(loadRoom);
@@ -607,15 +582,10 @@ async function handleSubmit() {
       })),
     };
 
-    // Replace with your real API call, e.g.:
-    // await fetch(`/api/rooms/${originalRoom.id}`, { method: "PATCH", body: ... });
-    console.log("Updating room:", payload);
+    const savedRoom = await updateRoom(originalRoom.id, form);
 
     // Treat the just-saved form values as the new "original" baseline.
-    applyRoomToState({
-      ...payload,
-      media: form.mediaFiles.map((f) => ({ id: f.id, url: f.preview })),
-    });
+    applyRoomToState(savedRoom);
 
     emit("saved", payload);
   } finally {

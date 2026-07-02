@@ -160,13 +160,14 @@
                 text-anchor="end"
                 fill="#94a3b8"
                 font-size="9"
-              >${{ yVal }}</text>
+              >{{ formatAxisMoney(yVal) }}</text>
             </g>
 
             <!-- Candles -->
             <g v-for="(c, i) in candles" :key="'c-' + i">
               <!-- X label -->
               <text
+                v-if="shouldShowXLabel(i)"
                 :x="cx(i)"
                 :y="svgH - padB + 13"
                 text-anchor="middle"
@@ -249,7 +250,7 @@
             </td>
             <td class="px-5 py-3.5">
               <span :class="['text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap',
-                booking.status === 'Confirmed'
+                ['Confirmed', 'Paid'].includes(booking.status)
                   ? 'bg-teal-50/80 text-teal-700 border border-teal-200/50'
                   : 'bg-amber-50/80 text-amber-700 border border-amber-200/50']">
                 {{ booking.status }}
@@ -279,7 +280,7 @@
             <div class="flex items-center justify-between gap-2">
               <span class="font-medium text-slate-800 truncate">{{ booking.name }}</span>
               <span :class="['text-[11px] font-medium px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap',
-                booking.status === 'Confirmed'
+                ['Confirmed', 'Paid'].includes(booking.status)
                   ? 'bg-teal-50/80 text-teal-700 border border-teal-200/50'
                   : 'bg-amber-50/80 text-amber-700 border border-amber-200/50']">
                 {{ booking.status }}
@@ -392,21 +393,42 @@ async function loadDashboard() {
 }
 const svgW = 560;
 const svgH = 220;
-const padL = 36;
+const padL = 44;
 const padR = 8;
 const padT = 10;
 const padB = 24;
-const bodyW = 14;
 const chartHeight = "clamp(160px, 35vw, 240px)";
 const allVals = computed(() => candles.value.flatMap((c) => [c.high, c.low]));
-const minVal = computed(() => Math.min(...allVals.value, 0) - 20);
-const maxVal = computed(() => Math.max(...allVals.value, 100) + 20);
+const minVal = computed(() => {
+  const min = Math.min(...allVals.value, 0);
+  const max = Math.max(...allVals.value, 100);
+  const padding = Math.max(20, (max - min) * 0.12);
+  return Math.max(0, min - padding);
+});
+const maxVal = computed(() => {
+  const min = Math.min(...allVals.value, 0);
+  const max = Math.max(...allVals.value, 100);
+  const padding = Math.max(20, (max - min) * 0.12);
+  return max + padding;
+});
 const yGridLines = computed(() => {
-  const step = 50;
+  const targetTicks = 5;
+  const range = Math.max(1, maxVal.value - minVal.value);
+  const roughStep = range / (targetTicks - 1);
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const residual = roughStep / magnitude;
+  const niceResidual = residual <= 1 ? 1 : residual <= 2 ? 2 : residual <= 5 ? 5 : 10;
+  const step = niceResidual * magnitude;
+  const start = Math.ceil(minVal.value / step) * step;
+  const end = Math.floor(maxVal.value / step) * step;
   const lines = [];
-  for (let v = Math.ceil(minVal.value / step) * step; v <= maxVal.value; v += step) lines.push(v);
+  for (let v = start; v <= end; v += step) lines.push(Math.round(v));
+  if (lines.length < 2) {
+    lines.push(Math.round(minVal.value), Math.round(maxVal.value));
+  }
   return lines;
 });
+const bodyW = computed(() => Math.max(5, Math.min(14, (svgW - padL - padR) / Math.max(candles.value.length, 1) * 0.36)));
 function scaleY(val) {
   const h = svgH - padT - padB;
   return padT + h - ((val - minVal.value) / (maxVal.value - minVal.value || 1)) * h;
@@ -414,6 +436,16 @@ function scaleY(val) {
 function cx(i) {
   const usable = svgW - padL - padR;
   return padL + (i + 0.5) * (usable / candles.value.length);
+}
+function shouldShowXLabel(index) {
+  const count = candles.value.length;
+  if (count <= 8) return true;
+  const step = Math.ceil(count / 6);
+  return index === 0 || index === count - 1 || index % step === 0;
+}
+function formatAxisMoney(value) {
+  if (Math.abs(value) >= 1000) return `$${Math.round(value / 100) / 10}k`;
+  return `$${Math.round(value)}`;
 }
 const bookings = computed(() => rawBookings.value.map((b) => ({
   ...b,

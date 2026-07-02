@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { API_URL, apiFetch } from "./client.js";
+import { clearApiToken, ensureApiToken } from "../auth.js";
 
 const fallbackImage =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&q=80";
@@ -86,7 +87,12 @@ function normalizeBadge(raw) {
 }
 
 function parseRoomTypes(raw = {}) {
-  const source = raw.room_types || raw.rooms || raw.active_room_types;
+  const sources = [
+    ...parseList(raw.room_types),
+    ...parseList(raw.rooms),
+    ...parseList(raw.active_room_types),
+  ];
+  const source = sources.length ? sources : null;
 
   if (!source) return [];
 
@@ -129,11 +135,16 @@ export function normalizeHotel(raw = {}) {
       };
     }
 
+    const roomType = room.type || room.room_type || room.category || "standard";
+
     return {
       ...room,
-      type: room.type || room.room_type || room.name?.toLowerCase() || "suite",
-      name: room.name || room.type || room.room_type || "Suite",
+      type: roomType,
+      name: room.name || room.roomName || room.room_number || `${roomType} Room`,
+      price: Number(room.price ?? room.price_per_night ?? room.base_rate ?? price),
+      max_guests: Number(room.max_guests ?? room.max_occupancy ?? room.capacity ?? 2),
       image: resolveAssetUrl(room.image || room.image_url) || firstImage(raw),
+      available: room.available ?? room.status !== "maintenance",
     };
   });
 
@@ -235,19 +246,35 @@ async function fetchHotel(id) {
 export const hotelApi = {
   list: fetchHotels,
   show: fetchHotel,
-  create(payload) {
+  async create(payload) {
+    await ensureApiToken();
     const options =
       payload instanceof FormData
         ? { method: "POST", body: payload }
         : { method: "POST", body: JSON.stringify(payload) };
-    return apiFetch("/hotels", options);
+    try {
+      return await apiFetch("/hotels", options);
+    } catch (err) {
+      if (err.status !== 401) throw err;
+      clearApiToken();
+      await ensureApiToken({ refresh: true });
+      return apiFetch("/hotels", options);
+    }
   },
-  update(id, payload) {
+  async update(id, payload) {
+    await ensureApiToken();
     const options =
       payload instanceof FormData
         ? { method: "POST", body: payload }
         : { method: "PUT", body: JSON.stringify(payload) };
-    return apiFetch(`/hotels/${id}`, options);
+    try {
+      return await apiFetch(`/hotels/${id}`, options);
+    } catch (err) {
+      if (err.status !== 401) throw err;
+      clearApiToken();
+      await ensureApiToken({ refresh: true });
+      return apiFetch(`/hotels/${id}`, options);
+    }
   },
   remove(id) {
     return apiFetch(`/hotels/${id}`, { method: "DELETE" });

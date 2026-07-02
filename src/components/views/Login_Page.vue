@@ -288,7 +288,7 @@ async function submit() {
 
 function fillAdmin() {
   form.email = "admin@stayeasy.com";
-  form.password = "admin123";
+  form.password = "password";
   touched.email = false;
   touched.password = false;
   error.value = "";

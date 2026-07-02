@@ -304,7 +304,7 @@
                         ? "Unavailable"
                         : selectedRoomType === room.type
                           ? "Selected"
-                          : "Select"
+                          : "Select room"
                     }}
                   </button>
                 </div>
@@ -429,9 +429,15 @@
 
           <button
             @click="reserveNow"
-            class="w-full mt-4 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 rounded-xl transition text-sm"
+            :disabled="!selectedRoom"
+            :class="[
+              'w-full mt-4 text-white font-bold py-3 rounded-xl transition text-sm',
+              selectedRoom
+                ? 'bg-cyan-500 hover:bg-cyan-600'
+                : 'bg-gray-300 cursor-not-allowed',
+            ]"
           >
-            Reserve Now
+            {{ selectedRoom ? "Reserve Now" : "Select a room first" }}
           </button>
 
           <div class="mt-4 space-y-2 text-sm text-gray-600">
@@ -496,7 +502,8 @@ const router = useRouter();
 const { hotels, loading, error, fetchHotel } = hotelApi.setup();
 
 const hotel = ref(null);
-const selectedRoomType = ref("");
+const DEFAULT_ROOM_TYPE = "standard";
+const selectedRoomType = ref(DEFAULT_ROOM_TYPE);
 
 async function loadHotel() {
   const hotelId = Number(route.params.id);
@@ -515,10 +522,10 @@ const cleaningFee = ref(120);
 const serviceFee = ref(85);
 
 const selectedRoom = computed(() => {
-  const selectableRooms = rooms.value.filter((room) => room.available);
   return (
-    selectableRooms.find((room) => room.type === selectedRoomType.value) ||
-    selectableRooms[0] ||
+    rooms.value.find((room) => room.available && room.type === selectedRoomType.value) ||
+    rooms.value.find((room) => room.available && room.type === DEFAULT_ROOM_TYPE) ||
+    rooms.value.find((room) => room.available) ||
     null
   );
 });
@@ -686,7 +693,7 @@ function normalizeRoomType(value) {
   if (validRoomTypes.includes(roomType)) return roomType;
   return (
     validRoomTypes.find((type) => roomType.includes(type)) ||
-    ""
+    DEFAULT_ROOM_TYPE
   );
 }
 
@@ -696,9 +703,7 @@ const rooms = computed(() => {
   return hotel.value.rooms
     .map((room) => {
       const name = room.name || room.type || room.room_type || "Room";
-      const type =
-        normalizeRoomType(room.room_type || room.type) ||
-        normalizeRoomType(name);
+      const type = normalizeRoomType(room.room_type || room.type || name);
 
       return {
         type,
@@ -706,10 +711,11 @@ const rooms = computed(() => {
         desc: room.description || room.desc || "Comfortable stay",
         size: room.size || room.area || "N/A",
         bed: room.bed || room.bed_type || "Bed",
-        max: room.max_guests || room.max || room.capacity || 2,
+        max: room.max_guests || room.max_occupancy || room.max || room.capacity || 2,
         price: Number(
           room.price ||
             room.price_per_night ||
+            room.base_rate ||
             room.base_price ||
             hotel.value.price ||
             0,
@@ -717,33 +723,19 @@ const rooms = computed(() => {
         badge: room.badge || null,
         badgeColor: room.badgeColor || "bg-blue-500",
         image: room.image || room.image_url || hotel.value.image,
-        available: room.available !== false && room.is_available !== false && room.active !== false,
+        available: room.available !== false && room.is_available !== false && room.active !== false && room.status !== "maintenance",
       };
     })
     .filter((room) => room.type);
 });
 
-watch(
-  rooms,
-  (availableRooms) => {
-    if (!availableRooms.length) {
-      selectedRoomType.value = "";
-      return;
-    }
-
-    const selectableRooms = availableRooms.filter((room) => room.available);
-
-    if (!selectableRooms.length) {
-      selectedRoomType.value = "";
-      return;
-    }
-
-    if (!selectableRooms.some((room) => room.type === selectedRoomType.value)) {
-      selectedRoomType.value = selectableRooms[0].type;
-    }
-  },
-  { immediate: true },
-);
+watch(rooms, (availableRooms) => {
+  if (!availableRooms.some((room) => room.available && room.type === selectedRoomType.value)) {
+    const standardRoom = availableRooms.find((room) => room.available && room.type === DEFAULT_ROOM_TYPE);
+    const firstAvailableRoom = availableRooms.find((room) => room.available);
+    selectedRoomType.value = standardRoom?.type || firstAvailableRoom?.type || DEFAULT_ROOM_TYPE;
+  }
+}, { immediate: true });
 
 function selectRoom(room) {
   if (!room.available) return;
@@ -751,9 +743,7 @@ function selectRoom(room) {
 }
 
 function reserveNow() {
-  const roomType = selectedRoom.value?.available ? selectedRoom.value.type : "";
-
-  if (!roomType) return;
+  const roomType = selectedRoom.value?.available ? selectedRoom.value.type : DEFAULT_ROOM_TYPE;
 
   router.push({
     name: "confirm",

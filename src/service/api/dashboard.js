@@ -1,14 +1,5 @@
 import { adminApi, bookingApi } from "./client.js";
-import { hasApiToken } from "../auth.js";
-import {
-  bookings as overviewBookings,
-  roomAvailability as overviewRoomAvailability,
-  stats as overviewStats,
-} from "./Data_overview.js";
-import {
-  bookings as demoBookings,
-  stats as demoBookingStats,
-} from "./Data_bookin.js";
+import { clearApiToken, ensureApiToken, hasApiToken } from "../auth.js";
 import { guests as demoGuests } from "./Data_guest.js";
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -41,18 +32,30 @@ function formatDate(value) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function normalizeStatus(value) {
-  const status = String(value || "confirmed").toLowerCase();
+function normalizeStatus(value, paymentValue = "") {
+  const status = String(value || "").toLowerCase();
+  const paymentStatus = String(paymentValue || "").toLowerCase();
+  if (status.includes("awaiting") || status.includes("approval")) return "Awaiting Approval";
+  if (status.includes("denied")) return "Denied";
   if (status.includes("cancel")) return "Canceled";
   if (status.includes("check")) return "Checked-in";
   if (status.includes("pending")) return "Pending";
+  if (status.includes("confirm")) return "Confirmed";
+  if (["paid", "authorized", "completed"].some((item) => paymentStatus.includes(item))) return "Paid";
   return "Confirmed";
 }
 
 export function normalizeBooking(raw = {}) {
   const guest = raw.user || raw.guest || raw.customer || {};
   const hotel = raw.hotel || {};
-  const roomType = raw.room_type || raw.roomType || raw.room?.type || "Room";
+  const room = raw.room || {};
+  const payment =
+    raw.payment ||
+    raw.latest_payment ||
+    raw.payment_details ||
+    raw.payments?.[0] ||
+    {};
+  const roomType = raw.room_type || raw.roomType || room.type || room.room_type || room.name || "Room";
   const checkIn = raw.check_in || raw.checkIn;
   const checkOut = raw.check_out || raw.checkOut;
   const guestName =
@@ -67,12 +70,14 @@ export function normalizeBooking(raw = {}) {
     name: guestName,
     email: raw.email || guest.email || "—",
     roomType,
-    roomNumber: raw.room_number || raw.roomNumber || raw.room?.number || hotel.name || "Unassigned",
+    roomNumber: raw.room_number || raw.roomNumber || room.number || room.room_number || hotel.name || "Unassigned",
     bookingId: raw.booking_reference || raw.bookingReference || raw.id || "—",
     checkIn: formatDate(checkIn),
     checkOut: formatDate(checkOut),
     nights: numberValue(raw.nights, 1),
-    status: normalizeStatus(raw.status),
+    status: normalizeStatus(raw.status, raw.payment_status || raw.paymentStatus || payment.status),
+    paymentStatus: String(payment.status || raw.payment_status || raw.paymentStatus || "unpaid"),
+    rawStatus: raw.status || "",
   };
 }
 
@@ -151,8 +156,8 @@ export function normalizeRevenueSeries(raw = {}) {
   const list = toArray(rows);
 
   return list.map((item, index) => {
-    const open = numberValue(item.open ?? item.start ?? item.amount ?? item.revenue);
-    const close = numberValue(item.close ?? item.end ?? item.amount ?? item.revenue, open);
+    const open = numberValue(item.open ?? item.opening ?? item.start ?? item.amount ?? item.revenue);
+    const close = numberValue(item.close ?? item.closing ?? item.end ?? item.amount ?? item.revenue, open);
     const high = numberValue(item.high ?? Math.max(open, close), Math.max(open, close));
     const low = numberValue(item.low ?? Math.min(open, close), Math.min(open, close));
 
@@ -168,20 +173,7 @@ export function normalizeRevenueSeries(raw = {}) {
 }
 
 export async function fetchDashboardData({ hotelId, range = "current" } = {}) {
-  if (!hasApiToken()) {
-    return {
-      stats: overviewStats,
-      roomAvailability: overviewRoomAvailability,
-      candles: [
-        { label: "Mon", open: 180, high: 260, low: 140, close: 240, bullish: true },
-        { label: "Tue", open: 240, high: 290, low: 210, close: 225, bullish: false },
-        { label: "Wed", open: 225, high: 330, low: 220, close: 310, bullish: true },
-        { label: "Thu", open: 310, high: 360, low: 280, close: 340, bullish: true },
-        { label: "Fri", open: 340, high: 380, low: 300, close: 320, bullish: false },
-      ],
-      bookings: overviewBookings.map(normalizeBooking),
-    };
-  }
+  await ensureApiToken();
 
   const [overview, revenue, recentBookings] = await Promise.all([
     adminApi.overview(hotelId),
@@ -205,20 +197,31 @@ export async function fetchDashboardData({ hotelId, range = "current" } = {}) {
   };
 }
 
-export async function fetchBookingsData() {
-  if (!hasApiToken()) {
-    return {
-      stats: demoBookingStats,
-      bookings: demoBookings.map(normalizeBooking),
-    };
-  }
+export async function fetchBookingsData({ hotelId } = {}) {
+  await ensureApiToken();
 
-  const [bookings, summary] = await Promise.all([
-    bookingApi.list(),
-    adminApi.bookingsSummary().catch(() => null),
-  ]);
+  let bookings;
+  let summary;
+
+  try {
+    [bookings, summary] = await Promise.all([
+      adminApi.bookings(hotelId).catch(() => bookingApi.list()),
+      adminApi.bookingsSummary(hotelId).catch(() => null),
+    ]);
+  } catch (err) {
+    if (err.status !== 401) throw err;
+
+    clearApiToken();
+    await ensureApiToken({ refresh: true });
+    [bookings, summary] = await Promise.all([
+      adminApi.bookings(hotelId).catch(() => bookingApi.list()),
+      adminApi.bookingsSummary(hotelId).catch(() => null),
+    ]);
+  }
   const rows =
+    bookings.bookings?.data ||
     bookings.bookings ||
+    bookings.data?.bookings?.data ||
     bookings.data?.bookings ||
     bookings.data?.data ||
     bookings.data ||
@@ -237,6 +240,11 @@ export async function fetchBookingsData() {
     stats: {
       totalBookings: { value: summaryPayload.total_bookings ?? summaryPayload.bookings_count ?? normalized.length },
       checkInsToday: { value: summaryPayload.check_ins_today ?? summaryPayload.checkins_today ?? 0 },
+      pendingApproval: {
+        value:
+          summaryPayload.pending_approval ??
+          normalized.filter((booking) => booking.status === "Awaiting Approval").length,
+      },
       occupancyRate: { value: summaryPayload.occupancy_rate ?? summaryPayload.occupancy ?? 0 },
       revenue: { value: money(totalRevenue), period: summaryPayload.period || "MTD" },
     },
@@ -245,6 +253,8 @@ export async function fetchBookingsData() {
 }
 
 export async function fetchGuestsData() {
+  await ensureApiToken();
+
   if (!hasApiToken()) {
     return demoGuests;
   }

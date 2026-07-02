@@ -6,6 +6,7 @@ import Home_Page from "../components/views/Home_Page.vue";
 import Hotel_Card from "../components/views/Hotel_Card.vue";
 import Hotel_Detail from "../components/views/Hotel_Detail.vue";
 import Confirm_Page from "../components/views/Confirm_Page.vue";
+import Process_Page from "../components/views/Process_Page.vue";
 import Login_Page from "../components/views/Login_Page.vue";
 import Register_Page from "../components/views/Register_Page.vue";
 import Contact_Page from "../components/views/Contact_Page.vue";
@@ -14,6 +15,7 @@ import Booking from "../components/dashboard/Booking.vue";
 import Guests from "../components/dashboard/Guests.vue";
 import Room_Management from "../components/dashboard/Room_Management.vue";
 import Add_Room from "../components/dashboard/Add_Room.vue";
+import Add_Hotel from "../components/dashboard/Add_Hotel.vue";
 import Update_Room from "../components/dashboard/Update_Room.vue";
 import Setting from "../components/dashboard/Setting.vue";
 import { getCurrentUser, hasApiToken, isAdminUser } from "../service/auth.js";
@@ -44,6 +46,12 @@ const router = createRouter({
           path: "confirm",
           name: "confirm",
           component: Confirm_Page,
+          meta: { requiresAuth: true },
+        },
+        {
+          path: "process",
+          name: "process",
+          component: Process_Page,
           meta: { requiresAuth: true },
         },
         {
@@ -94,6 +102,11 @@ const router = createRouter({
           path: "room-management/add",
           name: "room-add",
           component: Add_Room,
+        },
+        {
+          path: "hotels/add",
+          name: "hotel-add",
+          component: Add_Hotel,
         },
         {
           path: "room-management/:id/edit",

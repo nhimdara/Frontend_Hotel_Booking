@@ -614,23 +614,41 @@ const paymentQrUrl = computed(() => payment.value?.qr_code_payload || "");
 const displayPaymentQrUrl = computed(() => paymentQrUrl.value || "/ada-pay-qr.png");
 const paymentStatusLabel = computed(() => {
   if (isPaymentLoading.value) return "Preparing payment";
-  if (["paid", "authorized", "completed"].includes(payment.value?.status)) {
+  if (["paid", "authorized", "completed"].includes(paymentStatus.value)) {
     return "Payment confirmed";
   }
-  if (payment.value?.status) return `Payment ${payment.value.status}`;
+  if (paymentStatus.value) return `Payment ${paymentStatus.value}`;
   return "Waiting for scan";
 });
+const paymentStatus = computed(() => String(payment.value?.status || "").toLowerCase());
 const isPaymentComplete = computed(() =>
-  ["paid", "authorized", "completed"].includes(payment.value?.status),
+  ["paid", "authorized", "completed"].includes(paymentStatus.value),
 );
 
 function applyPaymentResponse(data) {
-  booking.value = data?.booking || booking.value;
-  payment.value = data?.payment || data?.data?.payment || payment.value;
+  booking.value = data?.booking || data?.data?.booking || booking.value;
+  const responsePayment = data?.payment || data?.data?.payment;
+  payment.value = responsePayment || payment.value;
 
-  if (Number.isFinite(data?.seconds_remaining)) {
-    totalSeconds.value = data.seconds_remaining;
+  const responseStatus = data?.status || data?.data?.status || responsePayment?.status;
+  if (responseStatus) {
+    payment.value = { ...(payment.value || {}), status: responseStatus };
   }
+
+  const secondsRemaining = data?.seconds_remaining || data?.data?.seconds_remaining;
+  if (Number.isFinite(secondsRemaining)) {
+    totalSeconds.value = secondsRemaining;
+  }
+}
+
+function goToProcessingPage() {
+  const id = booking.value?.id || bookingId.value;
+  router.push({
+    name: "process",
+    query: {
+      ...(id ? { bookingId: id } : {}),
+    },
+  });
 }
 
 function hasReusablePayment(data) {
@@ -651,11 +669,14 @@ async function ensureBooking() {
     check_in: bookingCheckIn.value,
     check_out: bookingCheckOut.value,
     guests: Math.max(1, adults.value + children.value),
+    guest_name: form.value.name || auth.user.value?.fullName || "",
+    guest_email: form.value.email || auth.user.value?.email || "",
+    guest_phone: form.value.phone || "",
     room_type: normalizedRoomType(),
   });
 
-  booking.value = data.booking;
-  return data.booking;
+  booking.value = data.booking || data.data?.booking || data.data || data;
+  return booking.value;
 }
 
 async function startPayment() {
@@ -699,8 +720,11 @@ async function refreshPaymentStatus() {
       totalSeconds.value = data.seconds_remaining;
     }
 
-    if (["paid", "authorized", "completed", "failed", "expired"].includes(data.status)) {
+    if (["paid", "authorized", "completed", "failed", "expired"].includes(String(data.status).toLowerCase())) {
       stopPaymentPolling();
+      if (["paid", "authorized", "completed"].includes(String(data.status).toLowerCase())) {
+        goToProcessingPage();
+      }
     }
   } catch (err) {
     paymentError.value = err.message || "Could not refresh payment status.";
@@ -728,6 +752,7 @@ async function authorizePayment() {
     const data = await paymentApi.authorize(payment.value.id);
     applyPaymentResponse(data);
     stopPaymentPolling();
+    goToProcessingPage();
   } catch (err) {
     paymentError.value = err.message || "Could not authorize payment.";
   } finally {
@@ -764,6 +789,7 @@ async function markPaymentAlreadyPaid() {
     const data = await paymentApi.authorize(payment.value.id);
     applyPaymentResponse(data);
     stopPaymentPolling();
+    goToProcessingPage();
   } catch (err) {
     paymentError.value =
       err.status === 401

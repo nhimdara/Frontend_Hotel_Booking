@@ -1,6 +1,6 @@
-import { hotelApi } from "./Hotel.js";
+import { roomApi } from "./client.js";
 import { rooms as demoRooms, stats as demoStats } from "./Data_room.js";
-import { hasApiToken } from "../auth.js";
+import { clearApiToken, ensureApiToken, hasApiToken } from "../auth.js";
 
 const typeMap = {
   "Standard King": "standard",
@@ -46,8 +46,8 @@ export function normalizeRoom(raw = {}) {
     floorNumber: raw.floor || raw.floorNumber || "1",
     wing: raw.wing || raw.building || raw.location || "",
     status: titleCase(status),
-    baseRate: numberValue(raw.price_per_night ?? raw.price ?? raw.baseRate),
-    maxOccupancy: numberValue(raw.max_guests ?? raw.maxOccupancy ?? raw.capacity, 2),
+    baseRate: numberValue(raw.base_rate ?? raw.price_per_night ?? raw.price ?? raw.baseRate),
+    maxOccupancy: numberValue(raw.max_occupancy ?? raw.max_guests ?? raw.maxOccupancy ?? raw.capacity, 2),
     description: raw.description || "",
     media: (raw.images || raw.image_urls || [])
       .map((url, index) => ({ id: `${raw.id || "room"}-${index}`, url }))
@@ -74,12 +74,23 @@ function computeStats(rooms) {
 }
 
 export async function fetchRooms() {
+  await ensureApiToken();
+
   if (!hasApiToken()) {
     return { rooms: demoRooms.map(normalizeRoom), stats: demoStats, source: "demo" };
   }
 
-  const hotels = await hotelApi.list({ per_page: 100 });
-  const rooms = hotels.map(normalizeRoom);
+  const data = await roomApi.list({ per_page: 100 });
+  const rows =
+    data.rooms?.data ||
+    data.rooms ||
+    data.data?.rooms?.data ||
+    data.data?.rooms ||
+    data.data?.data ||
+    data.data ||
+    data ||
+    [];
+  const rooms = rows.map(normalizeRoom);
 
   return {
     rooms,
@@ -89,40 +100,58 @@ export async function fetchRooms() {
 }
 
 export async function fetchRoom(id) {
+  await ensureApiToken();
+
   if (!hasApiToken()) {
     const room = demoRooms.find((item) => String(item.id) === String(id));
     return normalizeRoom(room || { id });
   }
 
-  const hotel = await hotelApi.show(id);
-  return normalizeRoom(hotel);
+  const data = await roomApi.show(id);
+  return normalizeRoom(data.room || data.data || data);
 }
 
-function formToHotelPayload(form) {
+function formToRoomPayload(form) {
+  const hasUploads = form.mediaFiles.some((item) => item.file);
   const imageUrls = form.mediaFiles
-    .map((file) => file.preview || file.url)
+    .filter((item) => !item.file)
+    .map((item) => item.preview || item.url)
     .filter(Boolean);
-  const name = form.roomName.trim();
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 
-  return {
-    name,
-    slug: slug || `room-${Date.now()}`,
-    description: form.description || "Comfortable accommodation unit.",
-    location: form.wing || "Main Wing",
-    country: "United States",
-    price_per_night: numberValue(form.baseRate),
-    star_rating: 4,
-    amenities: [],
+  const payload = {
+    room_number: form.roomName.trim(),
+    hotel_id: form.hotelId ? Number(form.hotelId) : undefined,
+    room_type: typeMap[form.roomType] || form.roomType || "standard",
+    floor: numberValue(form.floorNumber, 1),
+    wing: form.wing || "",
+    base_rate: numberValue(form.baseRate),
+    max_occupancy: numberValue(form.maxOccupancy, 2),
+    status: String(form.status || "available").toLowerCase(),
+    description: form.description || "",
     image_urls: imageUrls,
-    room_types: [typeMap[form.roomType] || "standard"],
   };
+
+  if (!hasUploads) return payload;
+
+  const data = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => data.append(`${key}[]`, item));
+    } else {
+      data.append(key, value);
+    }
+  });
+  form.mediaFiles
+    .filter((item) => item.file)
+    .forEach((item) => data.append("image_files[]", item.file));
+
+  return data;
 }
 
 export async function createRoom(form) {
+  await ensureApiToken();
+
   if (!hasApiToken()) {
     return normalizeRoom({
       id: `local-${Date.now()}`,
@@ -137,11 +166,24 @@ export async function createRoom(form) {
     });
   }
 
-  const data = await hotelApi.create(formToHotelPayload(form));
-  return normalizeRoom(data.hotel || data.data || data);
+  const payload = formToRoomPayload(form);
+  let data;
+
+  try {
+    data = await roomApi.create(payload);
+  } catch (err) {
+    if (err.status !== 401) throw err;
+    clearApiToken();
+    await ensureApiToken({ refresh: true });
+    data = await roomApi.create(payload);
+  }
+
+  return normalizeRoom(data.room || data.data || data);
 }
 
 export async function updateRoom(id, form) {
+  await ensureApiToken();
+
   if (!hasApiToken()) {
     return normalizeRoom({
       id,
@@ -156,6 +198,6 @@ export async function updateRoom(id, form) {
     });
   }
 
-  const data = await hotelApi.update(id, formToHotelPayload(form));
-  return normalizeRoom(data.hotel || data.data || data);
+  const data = await roomApi.update(id, formToRoomPayload(form));
+  return normalizeRoom(data.room || data.data || data);
 }

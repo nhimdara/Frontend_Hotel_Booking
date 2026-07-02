@@ -27,6 +27,16 @@
           </button>
           <button
             type="button"
+            @click="goToAddHotel"
+            class="flex items-center justify-center gap-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 px-4 py-2.5 sm:py-3 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors flex-1 sm:flex-none whitespace-nowrap"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" />
+            </svg>
+            Add Hotel
+          </button>
+          <button
+            type="button"
             @click="goToAddRoom"
             class="flex items-center justify-center gap-1.5 text-sm font-medium text-white bg-emerald-700 px-4 py-2.5 sm:py-3 rounded-xl shadow-sm hover:bg-emerald-800 transition-colors flex-1 sm:flex-none whitespace-nowrap"
           >
@@ -276,14 +286,35 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { stats, rooms as rawRooms } from "../../service/api/Data_room.js";
+import { fetchRooms } from "../../service/api/rooms.js";
 
 const router = useRouter();
+const stats = ref({
+  totalRooms: { value: 0, badge: "Loading" },
+  occupied: { value: 0, badge: "0% Occupancy" },
+  maintenance: { value: 0, badge: "Requires Attention" },
+  available: { value: 0, badge: "Ready to Book" },
+});
+const rawRooms = ref([]);
+
+async function loadRooms() {
+  try {
+    const data = await fetchRooms();
+    stats.value = data.stats;
+    rawRooms.value = data.rooms;
+  } catch (err) {
+    console.error("Failed to load rooms:", err);
+  }
+}
 
 function goToAddRoom() {
   router.push({ name: "room-add" });
+}
+
+function goToAddHotel() {
+  router.push({ name: "hotel-add" });
 }
 
 function goToEditRoom(room) {
@@ -294,8 +325,8 @@ const searchQuery = ref("");
 
 const filteredRooms = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
-  if (query === "") return rawRooms;
-  return rawRooms.filter(
+  if (query === "") return rawRooms.value;
+  return rawRooms.value.filter(
     (room) =>
       room.roomNumber.toLowerCase().includes(query) ||
       room.roomType.toLowerCase().includes(query) ||
@@ -326,6 +357,7 @@ watch(searchQuery, () => { currentPage.value = 1; });
 watch(totalPages, (newTotal) => {
   if (currentPage.value > newTotal) currentPage.value = newTotal;
 });
+onMounted(loadRooms);
 
 const statusStyles = {
   Available: "bg-emerald-50 text-emerald-700",

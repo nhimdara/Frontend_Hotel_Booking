@@ -34,6 +34,24 @@
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 mt-5 sm:mt-6">
             <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1.5">Hotel</label>
+              <div class="relative">
+                <select
+                  v-model="form.hotelId"
+                  class="w-full text-sm text-slate-700 bg-white border border-slate-200 rounded-xl pl-3.5 pr-9 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-200/70 focus:border-emerald-300 transition-colors"
+                >
+                  <option value="">Select hotel</option>
+                  <option v-for="hotel in hotels" :key="hotel.id" :value="hotel.id">
+                    {{ hotel.name }}
+                  </option>
+                </select>
+                <svg class="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            <div>
               <label class="block text-sm font-medium text-slate-700 mb-1.5">Room Name / Number</label>
               <input
                 v-model="form.roomName"
@@ -164,8 +182,24 @@
           </div>
 
           <div class="mt-5 sm:mt-6 space-y-4">
-            <!-- Upload -->
             <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Upload image files</label>
+              <label
+                class="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-5 text-center transition hover:border-emerald-300 hover:bg-emerald-50/50"
+              >
+                <svg class="mb-2 h-6 w-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12V4m0 0l-4 4m4-4l4 4" />
+                </svg>
+                <span class="text-sm font-medium text-slate-700">Choose room photos</span>
+                <span class="mt-1 text-xs text-slate-400">JPG or PNG, up to 5MB each</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  class="hidden"
+                  @change="handleFileUpload"
+                />
+              </label>
 
               <!-- Preview thumbnails -->
               <div v-if="form.mediaFiles.length" class="flex flex-wrap gap-2 mt-3">
@@ -188,29 +222,22 @@
               </div>
             </div>
 
-            <!-- Import by link -->
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-2">Add image by link</label>
-              <div class="flex gap-2">
-                <input
-                  v-model="form.mediaLink"
-                  type="url"
-                  placeholder="https://example.com/room-view.jpg"
-                  class="flex-1 min-w-0 text-sm text-slate-700 placeholder:text-slate-400 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-200/70 focus:border-emerald-300 transition-colors"
-                />
-                <button
-                  type="button"
-                  @click="importLink"
-                  class="text-sm font-medium text-white bg-emerald-800 px-4 sm:px-5 py-2.5 rounded-xl hover:bg-emerald-900 transition-colors shrink-0"
-                >
-                  Import
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
         <!-- Form actions -->
+        <div
+          v-if="message.text"
+          :class="[
+            'rounded-xl border px-4 py-3 text-sm font-medium',
+            message.type === 'error'
+              ? 'border-rose-200 bg-rose-50 text-rose-700'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-700',
+          ]"
+        >
+          {{ message.text }}
+        </div>
+
         <div class="flex items-center justify-end gap-3 pt-1 pb-4">
           <button
             type="button"
@@ -221,9 +248,10 @@
           </button>
           <button
             type="submit"
-            class="text-sm font-medium text-white bg-emerald-800 px-5 py-2.5 rounded-xl shadow-sm hover:bg-emerald-900 transition-colors"
+            :disabled="saving"
+            class="text-sm font-medium text-white bg-emerald-800 px-5 py-2.5 rounded-xl shadow-sm hover:bg-emerald-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Register Room
+            {{ saving ? "Registering..." : "Register Room" }}
           </button>
         </div>
       </form>
@@ -232,7 +260,12 @@
 </template>
 
 <script setup>
-import { reactive } from "vue";
+import { onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
+import { createRoom } from "../../service/api/rooms.js";
+import { hotelApi } from "../../service/api/Hotel.js";
+
+const router = useRouter();
 
 const roomTypes = [
   "Standard King",
@@ -245,6 +278,7 @@ const roomTypes = [
 ];
 
 const defaultForm = {
+  hotelId: "",
   roomName: "",
   roomType: "Standard King",
   floorNumber: "",
@@ -253,10 +287,24 @@ const defaultForm = {
   maxOccupancy: "",
   description: "",
   mediaFiles: [],
-  mediaLink: "",
 };
 
 const form = reactive({ ...defaultForm, mediaFiles: [] });
+const hotels = ref([]);
+const saving = ref(false);
+const message = reactive({ type: "", text: "" });
+
+async function loadHotels() {
+  try {
+    hotels.value = await hotelApi.list({ per_page: 100 });
+    if (!form.hotelId && hotels.value.length) {
+      form.hotelId = hotels.value[0].id;
+    }
+  } catch (err) {
+    message.type = "error";
+    message.text = err.message || "Could not load hotels.";
+  }
+}
 
 function handleFileUpload(e) {
   const files = Array.from(e.target.files);
@@ -273,21 +321,29 @@ function removeFile(index) {
   form.mediaFiles.splice(index, 1);
 }
 
-function importLink() {
-  const url = form.mediaLink.trim();
-  if (!url) return;
-  form.mediaFiles.push({ file: null, preview: url });
-  form.mediaLink = "";
-}
-
 function resetForm() {
   form.mediaFiles.forEach((f) => {
     if (f.file) URL.revokeObjectURL(f.preview);
   });
-  Object.assign(form, { ...defaultForm, mediaFiles: [], mediaLink: "" });
+  Object.assign(form, { ...defaultForm, mediaFiles: [] });
 }
 
-function handleSubmit() {
-  console.log("Registering new room:", { ...form });
+async function handleSubmit() {
+  message.type = "";
+  message.text = "";
+  saving.value = true;
+
+  try {
+    await createRoom(form);
+    resetForm();
+    router.push({ name: "rooms" });
+  } catch (err) {
+    message.type = "error";
+    message.text = err.message || "Could not create room.";
+  } finally {
+    saving.value = false;
+  }
 }
+
+onMounted(loadHotels);
 </script>
