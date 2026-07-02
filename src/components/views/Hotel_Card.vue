@@ -58,7 +58,7 @@
             class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm sm:px-6 sm:py-5"
           >
             <p class="text-3xl font-bold text-slate-900">
-              {{ filteredProperties.length }}
+              {{ apiMatches }}
             </p>
             <p class="mt-1 text-sm text-slate-500">Matches</p>
           </div>
@@ -508,6 +508,7 @@ const ITEMS_PER_PAGE = 8;
 
 const {
   hotels: properties,
+  stats,
   loading,
   error,
   fetchHotels,
@@ -515,10 +516,10 @@ const {
 
 const filters = [
   { label: "Top Rated", value: "top-rated" },
-  { label: "Under $300", value: "under-300" },
+  { label: "5 Stars", value: "five-star" },
+  { label: "4+ Rating", value: "review-4" },
+  { label: "Under $500", value: "under-500" },
   { label: "Luxury", value: "luxury" },
-  { label: "Boutique", value: "boutique" },
-  { label: "Eiffel View", value: "eiffel-view" },
 ];
 
 const currentPage = ref(1);
@@ -533,18 +534,16 @@ const recommended = computed(() =>
 const filteredProperties = computed(() => {
   const filtered = properties.value.filter((property) => {
     if (activeFilter.value === "all") return true;
-    if (activeFilter.value === "top-rated") return property.rating >= 4.8;
-    if (activeFilter.value === "under-300") return property.price < 300;
-    if (activeFilter.value === "luxury") return property.price >= 500;
-    if (activeFilter.value === "boutique") {
-      return property.name.toLowerCase().includes("boutique");
-    }
-    if (activeFilter.value === "eiffel-view") {
+    if (activeFilter.value === "top-rated") {
       return (
-        property.name.toLowerCase().includes("tower") ||
-        property.description.toLowerCase().includes("eiffel")
+        property.rating >= 4.8 ||
+        property.badge?.label?.toLowerCase().includes("top")
       );
     }
+    if (activeFilter.value === "five-star") return property.starRating >= 5;
+    if (activeFilter.value === "review-4") return property.reviewScore >= 4;
+    if (activeFilter.value === "under-500") return property.price < 500;
+    if (activeFilter.value === "luxury") return property.price >= 500;
     return true;
   });
 
@@ -555,6 +554,8 @@ const filteredProperties = computed(() => {
     return b.rating - a.rating || a.price - b.price;
   });
 });
+
+const apiMatches = computed(() => stats.value?.matches ?? filteredProperties.value.length);
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredProperties.value.length / ITEMS_PER_PAGE)),
@@ -568,6 +569,7 @@ const paginatedProperties = computed(() =>
 );
 
 const averagePrice = computed(() => {
+  if (stats.value?.avg_price) return Math.round(Number(stats.value.avg_price));
   if (!filteredProperties.value.length) return 0;
   const total = filteredProperties.value.reduce(
     (sum, property) => sum + property.price,
@@ -577,6 +579,7 @@ const averagePrice = computed(() => {
 });
 
 const averageRating = computed(() => {
+  if (stats.value?.avg_rating) return Number(stats.value.avg_rating).toFixed(1);
   if (!filteredProperties.value.length) return "0.0";
   const total = filteredProperties.value.reduce(
     (sum, property) => sum + property.rating,

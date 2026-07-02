@@ -589,91 +589,63 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
-import {
-  stats,
-  bookings as rawBookings,
-  statusFilters,
-} from "../../service/api/Data_bookin.js";
-
-// --- Avatar initials ---
-const bookingsWithInitials = computed(() =>
-  rawBookings.map((booking) => ({
-    ...booking,
-    initials: booking.name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase(),
-  })),
-);
-
-// --- Search + status filter ---
+import { computed, onMounted, ref, watch } from "vue";
+import { fetchBookingsData } from "../../service/api/dashboard.js";
+const stats = ref({
+  totalBookings: { value: 0 },
+  checkInsToday: { value: 0 },
+  occupancyRate: { value: 0 },
+  revenue: { value: "USD 0", period: "MTD" },
+});
+const rawBookings = ref([]);
+const statusFilters = ["All Status", "Confirmed", "Checked-in", "Canceled", "Pending"];
+async function loadBookings() {
+  try {
+    const data = await fetchBookingsData();
+    stats.value = data.stats;
+    rawBookings.value = data.bookings;
+  } catch (err) {
+    console.error("Failed to load bookings:", err);
+  }
+}
+const bookingsWithInitials = computed(() => rawBookings.value.map((booking) => ({
+  ...booking,
+  initials: booking.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+})));
 const searchQuery = ref("");
 const activeFilter = ref("All Status");
-
 const filteredBookings = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
-
   return bookingsWithInitials.value.filter((booking) => {
-    const matchesStatus =
-      activeFilter.value === "All Status" ||
-      booking.status === activeFilter.value;
-
-    const matchesSearch =
-      query === "" ||
-      booking.name.toLowerCase().includes(query) ||
-      booking.email.toLowerCase().includes(query) ||
-      booking.bookingId.toLowerCase().includes(query);
-
+    const matchesStatus = activeFilter.value === "All Status" || booking.status === activeFilter.value;
+    const matchesSearch = query === "" || booking.name.toLowerCase().includes(query) || booking.email.toLowerCase().includes(query) || String(booking.bookingId).toLowerCase().includes(query);
     return matchesStatus && matchesSearch;
   });
 });
-
-// --- Pagination (mirrors the overview dashboard's recent bookings table) ---
 const pageSize = 5;
 const currentPage = ref(1);
-
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredBookings.value.length / pageSize)),
-);
-
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredBookings.value.length / pageSize)));
 const paginatedBookings = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
   return filteredBookings.value.slice(start, start + pageSize);
 });
-
-const rangeStart = computed(() =>
-  filteredBookings.value.length === 0
-    ? 0
-    : (currentPage.value - 1) * pageSize + 1,
-);
-const rangeEnd = computed(() =>
-  Math.min(currentPage.value * pageSize, filteredBookings.value.length),
-);
-
+const rangeStart = computed(() => filteredBookings.value.length === 0 ? 0 : (currentPage.value - 1) * pageSize + 1);
+const rangeEnd = computed(() => Math.min(currentPage.value * pageSize, filteredBookings.value.length));
 function goToPage(page) {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
 }
-
-// Reset to page 1 whenever the search or filter changes, and clamp
-// currentPage if the filtered result set shrinks below it.
-watch([searchQuery, activeFilter], () => {
-  currentPage.value = 1;
-});
+watch([searchQuery, activeFilter], () => { currentPage.value = 1; });
 watch(totalPages, (newTotal) => {
-  if (currentPage.value > newTotal) {
-    currentPage.value = newTotal;
-  }
+  if (currentPage.value > newTotal) currentPage.value = newTotal;
 });
-
 const statusStyles = {
   Confirmed: "bg-teal-50/80 text-teal-700 border border-teal-200/50",
   "Checked-in": "bg-amber-50/80 text-amber-700 border border-amber-200/50",
   Canceled: "bg-rose-50/80 text-rose-600 border border-rose-200/50",
+  Pending: "bg-slate-50/80 text-slate-600 border border-slate-200/50",
 };
+onMounted(loadBookings);
 </script>
 
 <style>

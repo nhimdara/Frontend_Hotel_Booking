@@ -125,10 +125,10 @@
                   class="p-4 border-[1.5px] border-[#dde8e8] rounded-2xl bg-white sm:p-5"
                 >
                   <img
-                    v-if="paymentQrUrl"
-                    :src="paymentQrUrl"
+                    v-if="displayPaymentQrUrl"
+                    :src="displayPaymentQrUrl"
                     alt="Payment QR code"
-                    class="w-48 h-48 object-contain"
+                    class="h-40 w-40 object-contain sm:h-48 sm:w-48"
                   />
                   <svg
                     v-else
@@ -236,13 +236,13 @@
                     {{ payment ? "Refresh payment QR" : "Start secure payment" }}
                   </button>
                   <button
-                    v-if="payment?.id && !['paid', 'authorized', 'completed'].includes(payment.status)"
+                    v-if="!isPaymentComplete"
                     type="button"
                     class="rounded-xl border border-[#dde8e8] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#0d5c5c] transition hover:bg-[#f2fafa] disabled:cursor-not-allowed disabled:opacity-60"
-                    :disabled="isPaymentLoading"
-                    @click="authorizePayment"
+                    :disabled="isPaymentLoading || !hotel"
+                    @click="markPaymentAlreadyPaid"
                   >
-                    Simulate paid
+                    Payment already paid
                   </button>
                 </div>
 
@@ -511,11 +511,8 @@
 import { ref, computed, onMounted, onUnmounted, watch, h } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import hotelApi from "../../service/api/Hotel.js";
-<<<<<<< HEAD
 import { bookingApi, paymentApi } from "../../service/api/client.js";
-=======
 import { useAuth } from "../../service/auth.js";
->>>>>>> 421128320b3b62615248d8e61db3d6d5cacf9231
 
 const route = useRoute();
 const router = useRouter();
@@ -600,7 +597,21 @@ function dateOffset(days) {
   return date.toISOString().slice(0, 10);
 }
 
+function firstQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizedRoomType() {
+  const roomType = String(firstQueryValue(route.query.roomType) || "suite").toLowerCase();
+  const validRoomTypes = ["standard", "deluxe", "suite", "presidential"];
+  return validRoomTypes.includes(roomType) ? roomType : "suite";
+}
+
+const bookingCheckIn = computed(() => firstQueryValue(checkIn.value) || dateOffset(1));
+const bookingCheckOut = computed(() => firstQueryValue(checkOut.value) || dateOffset(1 + nights.value));
+
 const paymentQrUrl = computed(() => payment.value?.qr_code_payload || "");
+const displayPaymentQrUrl = computed(() => paymentQrUrl.value || "/ada-pay-qr.png");
 const paymentStatusLabel = computed(() => {
   if (isPaymentLoading.value) return "Preparing payment";
   if (["paid", "authorized", "completed"].includes(payment.value?.status)) {
@@ -609,26 +620,38 @@ const paymentStatusLabel = computed(() => {
   if (payment.value?.status) return `Payment ${payment.value.status}`;
   return "Waiting for scan";
 });
+const isPaymentComplete = computed(() =>
+  ["paid", "authorized", "completed"].includes(payment.value?.status),
+);
 
 function applyPaymentResponse(data) {
   booking.value = data?.booking || booking.value;
-  payment.value = data?.payment || payment.value;
+  payment.value = data?.payment || data?.data?.payment || payment.value;
 
   if (Number.isFinite(data?.seconds_remaining)) {
     totalSeconds.value = data.seconds_remaining;
   }
 }
 
+function hasReusablePayment(data) {
+  return Boolean(data?.payment || data?.data?.payment);
+}
+
 async function ensureBooking() {
   if (bookingId.value) return { id: bookingId.value };
   if (booking.value?.id) return booking.value;
 
+  const selectedHotelId = Number(hotelId.value || hotel.value?.id);
+  if (!Number.isFinite(selectedHotelId) || selectedHotelId <= 0) {
+    throw new Error("Please select a valid hotel before booking.");
+  }
+
   const data = await bookingApi.create({
-    hotel_id: hotelId.value,
-    check_in: checkIn.value || dateOffset(1),
-    check_out: checkOut.value || dateOffset(1 + nights.value),
-    guests: adults.value + children.value,
-    room_type: route.query.roomType || "suite",
+    hotel_id: selectedHotelId,
+    check_in: bookingCheckIn.value,
+    check_out: bookingCheckOut.value,
+    guests: Math.max(1, adults.value + children.value),
+    room_type: normalizedRoomType(),
   });
 
   booking.value = data.booking;
@@ -641,11 +664,25 @@ async function startPayment() {
 
   try {
     const activeBooking = await ensureBooking();
-    const data = await paymentApi.initiate(activeBooking.id, "qr_scan");
+    let data;
+
+    try {
+      data = await paymentApi.initiate(activeBooking.id, "qr_scan");
+    } catch (err) {
+      if (err.status === 409 && hasReusablePayment(err.data)) {
+        data = err.data;
+      } else {
+        throw err;
+      }
+    }
+
     applyPaymentResponse(data);
     startPaymentPolling();
   } catch (err) {
-    paymentError.value = err.message || "Could not start payment.";
+    paymentError.value =
+      err.status === 401
+        ? "Your frontend session is logged in, but the API token is missing or expired. Please logout and login again."
+        : err.message || "Could not start payment.";
   } finally {
     isPaymentLoading.value = false;
   }
@@ -698,6 +735,45 @@ async function authorizePayment() {
   }
 }
 
+async function markPaymentAlreadyPaid() {
+  paymentError.value = "";
+  isPaymentLoading.value = true;
+
+  try {
+    if (!payment.value?.id) {
+      const activeBooking = await ensureBooking();
+      let data;
+
+      try {
+        data = await paymentApi.initiate(activeBooking.id, "qr_scan");
+      } catch (err) {
+        if (err.status === 409 && hasReusablePayment(err.data)) {
+          data = err.data;
+        } else {
+          throw err;
+        }
+      }
+
+      applyPaymentResponse(data);
+    }
+
+    if (!payment.value?.id) {
+      throw new Error("Could not find a payment to confirm.");
+    }
+
+    const data = await paymentApi.authorize(payment.value.id);
+    applyPaymentResponse(data);
+    stopPaymentPolling();
+  } catch (err) {
+    paymentError.value =
+      err.status === 401
+        ? "Your API session is missing or expired. Please logout and login again."
+        : err.message || "Could not confirm payment.";
+  } finally {
+    isPaymentLoading.value = false;
+  }
+}
+
 // ── NIGHTS (computed from real dates if present, else fallback) ────
 const nights = computed(() => {
   if (checkIn.value && checkOut.value) {
@@ -716,8 +792,8 @@ function formatDateLabel(dateStr) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-const checkInLabel = computed(() => formatDateLabel(checkIn.value) || "Oct 12");
-const checkOutLabel = computed(() => formatDateLabel(checkOut.value) || "Oct 17");
+const checkInLabel = computed(() => formatDateLabel(bookingCheckIn.value) || "—");
+const checkOutLabel = computed(() => formatDateLabel(bookingCheckOut.value) || "—");
 
 const guestSummary = computed(() => {
   const a = adults.value;

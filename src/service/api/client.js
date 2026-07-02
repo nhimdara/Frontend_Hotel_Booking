@@ -1,5 +1,5 @@
 export const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+ import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api"; // Make sure this is correct
 
 export function jsonHeaders(token = localStorage.getItem("token")) {
   return {
@@ -25,8 +25,12 @@ export async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const error = new Error(data?.message || "API request failed");
+    if (data?.errors) {
+      error.message = Object.values(data.errors).flat().join(" ");
+    }
     error.status = res.status;
     error.errors = data?.errors || {};
+    error.data = data;
     throw error;
   }
 

@@ -139,7 +139,7 @@
           </h3>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div
-              v-for="amenity in amenities"
+              v-for="amenity in displayAmenities"
               :key="amenity.name"
               class="flex items-start gap-3"
             >
@@ -166,12 +166,7 @@
           >
             <!-- Map placeholder -->
             <div class="absolute inset-0 flex items-center justify-center">
-              <div
-                class="w-full h-full bg-cover bg-center opacity-60"
-                style="
-                  background-image: url(&quot;https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/static/73.4,4.2,9,0/600x300?access_token=placeholder&quot;);
-                "
-              ></div>
+              <div class="map-preview w-full h-full opacity-70"></div>
               <div
                 class="absolute w-4 h-4 bg-cyan-500 rounded-full border-2 border-white shadow-lg"
               ></div>
@@ -253,8 +248,13 @@
           <div class="grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2 xl:grid-cols-3">
             <div
               v-for="room in rooms"
-              :key="room.name"
-              class="rounded-2xl overflow-hidden border border-gray-200 bg-white hover:shadow-md transition group"
+              :key="room.type || room.name"
+              class="rounded-2xl overflow-hidden border bg-white hover:shadow-md transition group"
+              :class="
+                selectedRoomType === room.type
+                  ? 'border-cyan-500 ring-2 ring-cyan-100'
+                  : 'border-gray-200'
+              "
             >
               <div class="relative h-36 overflow-hidden">
                 <img
@@ -288,9 +288,24 @@
                     <span class="text-xs text-gray-500"> /night</span>
                   </div>
                   <button
-                    class="bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                    class="text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                    :class="
+                      selectedRoomType === room.type
+                        ? 'bg-cyan-700 text-white'
+                        : room.available
+                          ? 'bg-cyan-500 text-white hover:bg-cyan-600'
+                          : 'bg-gray-200 text-gray-400'
+                    "
+                    :disabled="!room.available"
+                    @click="selectRoom(room)"
                   >
-                    Select
+                    {{
+                      !room.available
+                        ? "Unavailable"
+                        : selectedRoomType === room.type
+                          ? "Selected"
+                          : "Select"
+                    }}
                   </button>
                 </div>
               </div>
@@ -307,7 +322,7 @@
           <div class="flex items-center justify-between mb-1">
             <div>
               <span class="text-2xl font-bold text-gray-900"
-                >${{ hotel.price }}</span
+                >${{ selectedRoom?.price || hotel.price }}</span
               >
               <span class="text-sm text-gray-500"> /night</span>
             </div>
@@ -328,9 +343,13 @@
                 >
                   Check-in
                 </p>
-                <p class="text-sm font-bold text-gray-800 mt-0.5">
-                  Oct 24, 2024
-                </p>
+                <input
+                  v-model="checkInDate"
+                  type="date"
+                  :min="minimumCheckIn"
+                  class="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm font-bold text-gray-800 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                  @change="syncCheckoutAfterCheckIn"
+                />
               </div>
               <div class="p-3">
                 <p
@@ -338,9 +357,13 @@
                 >
                   Check-out
                 </p>
-                <p class="text-sm font-bold text-gray-800 mt-0.5">
-                  Oct 30, 2024
-                </p>
+                <input
+                  v-model="checkOutDate"
+                  type="date"
+                  :min="minimumCheckOut"
+                  class="mt-1 w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm font-bold text-gray-800 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+                  @change="syncNightsFromDates"
+                />
               </div>
             </div>
             <div
@@ -372,6 +395,38 @@
             </div>
           </div>
 
+          <div
+            class="mt-4 flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-3"
+          >
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Length of stay
+              </p>
+              <p class="mt-0.5 text-sm font-bold text-gray-800">
+                {{ nights }} night{{ nights === 1 ? "" : "s" }}
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg font-bold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                :disabled="nights <= 1"
+                aria-label="Remove one night"
+                @click="changeNights(-1)"
+              >
+                -
+              </button>
+              <button
+                type="button"
+                class="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-lg font-bold text-white transition hover:bg-cyan-600"
+                aria-label="Add one night"
+                @click="changeNights(1)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
           <button
             @click="reserveNow"
             class="w-full mt-4 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 rounded-xl transition text-sm"
@@ -381,7 +436,7 @@
 
           <div class="mt-4 space-y-2 text-sm text-gray-600">
             <div class="flex justify-between">
-              <span>${{ hotel.price }} × {{ nights }} nights</span>
+              <span>${{ selectedRoom?.price || hotel.price }} × {{ nights }} nights</span>
               <span class="font-medium text-gray-800">${{ subtotal }}</span>
             </div>
             <div class="flex justify-between">
@@ -441,6 +496,7 @@ const router = useRouter();
 const { hotels, loading, error, fetchHotel } = hotelApi.setup();
 
 const hotel = ref(null);
+const selectedRoomType = ref("");
 
 async function loadHotel() {
   const hotelId = Number(route.params.id);
@@ -454,19 +510,85 @@ async function loadHotel() {
 }
 
 // --- Booking Calculation ---
-// In a real app, these would come from a date picker
-const nights = ref(6);
+const nights = ref(1);
 const cleaningFee = ref(120);
 const serviceFee = ref(85);
 
+const selectedRoom = computed(() => {
+  const selectableRooms = rooms.value.filter((room) => room.available);
+  return (
+    selectableRooms.find((room) => room.type === selectedRoomType.value) ||
+    selectableRooms[0] ||
+    null
+  );
+});
+
 const subtotal = computed(() =>
-  hotel.value ? hotel.value.price * nights.value : 0,
+  hotel.value ? (selectedRoom.value?.price || hotel.value.price) * nights.value : 0,
 );
 const total = computed(
   () => subtotal.value + cleaningFee.value + serviceFee.value,
 );
 
-const amenities = [
+function toDateInputValue(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function dateFromOffset(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+const minimumCheckIn = toDateInputValue(dateFromOffset(1));
+const checkInDate = ref(minimumCheckIn);
+const checkOutDate = ref(toDateInputValue(dateFromOffset(2)));
+const minimumCheckOut = computed(() => {
+  const date = new Date(checkInDate.value);
+  date.setDate(date.getDate() + 1);
+  return toDateInputValue(date);
+});
+
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+const detailCheckInLabel = computed(() => formatDate(checkInDate.value));
+const detailCheckOutLabel = computed(() => formatDate(checkOutDate.value));
+
+function changeNights(delta) {
+  nights.value = Math.min(30, Math.max(1, nights.value + delta));
+  const date = new Date(checkInDate.value);
+  date.setDate(date.getDate() + nights.value);
+  checkOutDate.value = toDateInputValue(date);
+}
+
+function syncCheckoutAfterCheckIn() {
+  if (checkInDate.value < minimumCheckIn) {
+    checkInDate.value = minimumCheckIn;
+  }
+
+  if (checkOutDate.value <= checkInDate.value) {
+    checkOutDate.value = minimumCheckOut.value;
+  }
+
+  syncNightsFromDates();
+}
+
+function syncNightsFromDates() {
+  if (checkOutDate.value <= checkInDate.value) {
+    checkOutDate.value = minimumCheckOut.value;
+  }
+
+  const inDate = new Date(checkInDate.value);
+  const outDate = new Date(checkOutDate.value);
+  const diff = Math.round((outDate - inDate) / (1000 * 60 * 60 * 24));
+  nights.value = Math.min(30, Math.max(1, diff || 1));
+}
+
+const fallbackAmenities = [
   {
     name: "Infinity Pool",
     sub: "Temperature controlled",
@@ -499,8 +621,22 @@ const amenities = [
   },
 ];
 
+const displayAmenities = computed(() => {
+  if (!hotel.value?.amenities?.length) return fallbackAmenities;
+
+  return hotel.value.amenities.map((amenity) => ({
+    name: typeof amenity === "string" ? amenity : amenity.name || "Amenity",
+    sub:
+      typeof amenity === "string"
+        ? "Included with your stay"
+        : amenity.sub || amenity.description || "Included with your stay",
+    icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>',
+  }));
+});
+
 const fallbackRooms = [
   {
+    type: "standard",
     name: "Beachfront Sanctuary",
     desc: "Private beach lagoon",
     size: "90m²",
@@ -509,10 +645,12 @@ const fallbackRooms = [
     price: 580,
     badge: "Best Value",
     badgeColor: "bg-blue-500",
+    available: true,
     image:
       "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&q=80",
   },
   {
+    type: "deluxe",
     name: "Overwater Oasis",
     desc: "Infinite horizon views",
     size: "145m²",
@@ -521,10 +659,12 @@ const fallbackRooms = [
     price: 720,
     badge: "Editor's Pick",
     badgeColor: "bg-orange-500",
+    available: true,
     image:
       "https://images.unsplash.com/photo-1540541338287-41700207dee6?w=400&q=80",
   },
   {
+    type: "suite",
     name: "Azure Grand Suite",
     desc: "Private pool & butler service",
     size: "330m²",
@@ -533,32 +673,97 @@ const fallbackRooms = [
     price: 1450,
     badge: "Ultra Luxury",
     badgeColor: "bg-purple-600",
+    available: true,
     image:
       "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&q=80",
   },
 ];
 
+function normalizeRoomType(value) {
+  const roomType = String(value || "").toLowerCase();
+  const validRoomTypes = ["standard", "deluxe", "suite", "presidential"];
+
+  if (validRoomTypes.includes(roomType)) return roomType;
+  return (
+    validRoomTypes.find((type) => roomType.includes(type)) ||
+    ""
+  );
+}
+
 const rooms = computed(() => {
   if (!hotel.value?.rooms?.length) return fallbackRooms;
 
-  return hotel.value.rooms.map((room) => ({
-    name: room.name || room.type || room.room_type || "Room",
-    desc: room.description || room.desc || "Comfortable stay",
-    size: room.size || room.area || "N/A",
-    bed: room.bed || room.bed_type || "Bed",
-    max: room.max_guests || room.max || room.capacity || 2,
-    price: Number(room.price || room.price_per_night || hotel.value.price || 0),
-    badge: room.badge || null,
-    badgeColor: room.badgeColor || "bg-blue-500",
-    image: room.image || room.image_url || hotel.value.image,
-  }));
+  return hotel.value.rooms
+    .map((room) => {
+      const name = room.name || room.type || room.room_type || "Room";
+      const type =
+        normalizeRoomType(room.room_type || room.type) ||
+        normalizeRoomType(name);
+
+      return {
+        type,
+        name,
+        desc: room.description || room.desc || "Comfortable stay",
+        size: room.size || room.area || "N/A",
+        bed: room.bed || room.bed_type || "Bed",
+        max: room.max_guests || room.max || room.capacity || 2,
+        price: Number(
+          room.price ||
+            room.price_per_night ||
+            room.base_price ||
+            hotel.value.price ||
+            0,
+        ),
+        badge: room.badge || null,
+        badgeColor: room.badgeColor || "bg-blue-500",
+        image: room.image || room.image_url || hotel.value.image,
+        available: room.available !== false && room.is_available !== false && room.active !== false,
+      };
+    })
+    .filter((room) => room.type);
 });
 
+watch(
+  rooms,
+  (availableRooms) => {
+    if (!availableRooms.length) {
+      selectedRoomType.value = "";
+      return;
+    }
+
+    const selectableRooms = availableRooms.filter((room) => room.available);
+
+    if (!selectableRooms.length) {
+      selectedRoomType.value = "";
+      return;
+    }
+
+    if (!selectableRooms.some((room) => room.type === selectedRoomType.value)) {
+      selectedRoomType.value = selectableRooms[0].type;
+    }
+  },
+  { immediate: true },
+);
+
+function selectRoom(room) {
+  if (!room.available) return;
+  selectedRoomType.value = room.type;
+}
+
 function reserveNow() {
+  const roomType = selectedRoom.value?.available ? selectedRoom.value.type : "";
+
+  if (!roomType) return;
+
   router.push({
     name: "confirm",
     query: {
       hotelId: hotel.value?.id,
+      roomType,
+      checkIn: checkInDate.value,
+      checkOut: checkOutDate.value,
+      adults: 2,
+      children: 1,
     },
   });
 }
@@ -574,3 +779,15 @@ function goBack() {
 onMounted(loadHotel);
 watch(() => route.params.id, loadHotel);
 </script>
+
+<style scoped>
+.map-preview {
+  background-color: #dff5f4;
+  background-image:
+    linear-gradient(28deg, transparent 0 33%, rgba(20, 128, 128, 0.18) 34% 37%, transparent 38%),
+    linear-gradient(145deg, transparent 0 42%, rgba(245, 158, 11, 0.2) 43% 47%, transparent 48%),
+    linear-gradient(90deg, rgba(15, 118, 110, 0.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(15, 118, 110, 0.08) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+}
+</style>

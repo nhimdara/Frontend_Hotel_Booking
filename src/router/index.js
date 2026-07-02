@@ -16,7 +16,7 @@ import Room_Management from "../components/dashboard/Room_Management.vue";
 import Add_Room from "../components/dashboard/Add_Room.vue";
 import Update_Room from "../components/dashboard/Update_Room.vue";
 import Setting from "../components/dashboard/Setting.vue";
-import { getCurrentUser, isAdminUser } from "../service/auth.js";
+import { getCurrentUser, hasApiToken, isAdminUser } from "../service/auth.js";
 
 const router = createRouter({
   history: createWebHistory(),

@@ -353,110 +353,91 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
-import {
-  currentUser,
-  stats,
-  bookings as rawBookings,
-  operations as dashboardOperations,
-  roomAvailability,
-} from '../../service/api/Data_overview.js'
+import { computed, onMounted, ref, watch } from "vue";
+import { fetchDashboardData } from "../../service/api/dashboard.js";
+import { useAuth } from "../../service/auth.js";
 
-// ── Header ───────────────────x───────────────────────────
-const firstName = computed(() => currentUser.name.split(' ')[0])
-const todayLabel = computed(() =>
-  new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-)
-const occupancyRooms = computed(() =>
-  Math.round((roomAvailability.total * stats.occupancy.value) / 100)
-)
-
-// ── Revenue card sparkline ───────────────────────────────
-const sparkline = [40, 55, 45, 70, 60, 80, 65, 90, 72, 85]
-
-// ── Revenue Performance Chart ────────────────────────────
-const chartTab = ref('Current')
-
-const candles = [
-  { label: 'Oct 01', open: 280, high: 310, low: 230, close: 260, bullish: false },
-  { label: 'Oct 04', open: 255, high: 300, low: 240, close: 285, bullish: true  },
-  { label: 'Oct 07', open: 310, high: 320, low: 240, close: 250, bullish: false },
-  { label: 'Oct 10', open: 250, high: 330, low: 235, close: 315, bullish: true  },
-  { label: 'Oct 13', open: 320, high: 340, low: 280, close: 295, bullish: false },
-  { label: 'Oct 16', open: 285, high: 335, low: 270, close: 320, bullish: true  },
-  { label: 'Oct 19', open: 270, high: 390, low: 245, close: 375, bullish: true  },
-  { label: 'Oct 22', open: 370, high: 385, low: 310, close: 325, bullish: false },
-  { label: 'Oct 25', open: 340, high: 355, low: 270, close: 280, bullish: false },
-  { label: 'Oct 28', open: 260, high: 380, low: 210, close: 360, bullish: true  },
-  { label: 'Oct 31', open: 295, high: 375, low: 270, close: 355, bullish: true  },
-]
-
-// SVG dimensions (logical units — scales via viewBox)
-const svgW   = 560
-const svgH   = 220
-const padL   = 36
-const padR   = 8
-const padT   = 10
-const padB   = 24
-const bodyW  = 14
-
-// Responsive height class
-const chartHeight = 'clamp(160px, 35vw, 240px)'
-
-const allVals = candles.flatMap(c => [c.high, c.low])
-const minVal  = Math.min(...allVals) - 20
-const maxVal  = Math.max(...allVals) + 20
-
+const auth = useAuth();
+const currentUser = computed(() => ({
+  name: auth.user.value?.fullName || auth.user.value?.name || "Admin",
+  hotel: auth.user.value?.hotel || "your hotel",
+}));
+const stats = ref({
+  occupancy: { value: 0, label: "Loading" },
+  checkIns: { today: 0, total: 0 },
+  revenue: { amount: "USD 0", change: "Live total" },
+});
+const roomAvailability = ref({ total: 1, occupied: 0, available: 0 });
+const rawBookings = ref([]);
+const chartTab = ref("Current");
+const fallbackCandles = [{ label: "Live", open: 0, high: 1, low: 0, close: 1, bullish: true }];
+const candles = ref(fallbackCandles);
+const firstName = computed(() => currentUser.value.name.split(" ")[0]);
+const todayLabel = computed(() => new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }));
+const occupancyRooms = computed(() => Math.round((roomAvailability.value.total * stats.value.occupancy.value) / 100));
+const sparkline = computed(() => {
+  const max = Math.max(...candles.value.map((item) => item.high), 1);
+  return candles.value.slice(-10).map((c) => Math.max(12, Math.round((c.close / max) * 100)));
+});
+async function loadDashboard() {
+  try {
+    const data = await fetchDashboardData({ range: chartTab.value.toLowerCase() });
+    stats.value = data.stats;
+    roomAvailability.value = data.roomAvailability;
+    rawBookings.value = data.bookings;
+    candles.value = data.candles.length ? data.candles : fallbackCandles;
+  } catch (err) {
+    console.error("Failed to load dashboard data:", err);
+  }
+}
+const svgW = 560;
+const svgH = 220;
+const padL = 36;
+const padR = 8;
+const padT = 10;
+const padB = 24;
+const bodyW = 14;
+const chartHeight = "clamp(160px, 35vw, 240px)";
+const allVals = computed(() => candles.value.flatMap((c) => [c.high, c.low]));
+const minVal = computed(() => Math.min(...allVals.value, 0) - 20);
+const maxVal = computed(() => Math.max(...allVals.value, 100) + 20);
 const yGridLines = computed(() => {
-  const step = 50
-  const lines = []
-  for (let v = Math.ceil(minVal / step) * step; v <= maxVal; v += step) lines.push(v)
-  return lines
-})
-
+  const step = 50;
+  const lines = [];
+  for (let v = Math.ceil(minVal.value / step) * step; v <= maxVal.value; v += step) lines.push(v);
+  return lines;
+});
 function scaleY(val) {
-  const h = svgH - padT - padB
-  return padT + h - ((val - minVal) / (maxVal - minVal)) * h
+  const h = svgH - padT - padB;
+  return padT + h - ((val - minVal.value) / (maxVal.value - minVal.value || 1)) * h;
 }
-
 function cx(i) {
-  const usable = svgW - padL - padR
-  return padL + (i + 0.5) * (usable / candles.length)
+  const usable = svgW - padL - padR;
+  return padL + (i + 0.5) * (usable / candles.value.length);
 }
-
-// ── Bookings table ───────────────────────────────────────
-const bookings = computed(() =>
-  rawBookings.map(b => ({
-    ...b,
-    dates: `${b.checkIn} – ${b.checkOut}`,
-    initials: b.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase(),
-  }))
-)
-
-const pageSize    = 5
-const currentPage = ref(1)
-const totalPages  = computed(() => Math.max(1, Math.ceil(bookings.value.length / pageSize)))
-
+const bookings = computed(() => rawBookings.value.map((b) => ({
+  ...b,
+  dates: `${b.checkIn} - ${b.checkOut}`,
+  initials: b.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase(),
+})));
+const pageSize = 5;
+const currentPage = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(bookings.value.length / pageSize)));
 const paginatedBookings = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return bookings.value.slice(start, start + pageSize)
-})
-
-const rangeStart = computed(() =>
-  bookings.value.length === 0 ? 0 : (currentPage.value - 1) * pageSize + 1
-)
-const rangeEnd = computed(() =>
-  Math.min(currentPage.value * pageSize, bookings.value.length)
-)
-
+  const start = (currentPage.value - 1) * pageSize;
+  return bookings.value.slice(start, start + pageSize);
+});
+const rangeStart = computed(() => bookings.value.length === 0 ? 0 : (currentPage.value - 1) * pageSize + 1);
+const rangeEnd = computed(() => Math.min(currentPage.value * pageSize, bookings.value.length));
 function goToPage(page) {
-  if (page < 1 || page > totalPages.value) return
-  currentPage.value = page
+  if (page < 1 || page > totalPages.value) return;
+  currentPage.value = page;
 }
-
-watch(totalPages, newTotal => {
-  if (currentPage.value > newTotal) currentPage.value = newTotal
-})
+watch(totalPages, (newTotal) => {
+  if (currentPage.value > newTotal) currentPage.value = newTotal;
+});
+watch(chartTab, loadDashboard);
+onMounted(loadDashboard);
 </script>
 
 <style scoped>

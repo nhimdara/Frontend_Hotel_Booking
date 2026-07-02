@@ -263,6 +263,7 @@ function validate() {
 
 function redirectAfterLogin(user) {
   const redirect = route.query.redirect;
+
   if (redirect) {
     router.push(String(redirect));
     return;

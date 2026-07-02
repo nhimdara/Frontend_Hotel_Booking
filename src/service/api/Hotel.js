@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { apiFetch } from "./client.js";
+import { API_URL, apiFetch } from "./client.js";
 
 const fallbackImage =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&q=80";
@@ -13,6 +13,36 @@ const stats = ref({
 const loading = ref(false);
 const error = ref("");
 
+const apiOrigin = API_URL.replace(/\/api\/?$/, "");
+
+function parseList(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (!value) return [];
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  if (typeof value === "object") return Object.values(value);
+  return [];
+}
+
+function resolveAssetUrl(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/")) return `${apiOrigin}${url}`;
+  return `${apiOrigin}/${url}`;
+}
+
 function badgeStyle(label = "") {
   const lower = label.toLowerCase();
   if (lower.includes("top")) return "bg-amber-400 text-slate-900";
@@ -24,14 +54,17 @@ function badgeStyle(label = "") {
 }
 
 function firstImage(raw) {
-  if (raw.image_url) return raw.image_url;
-  if (raw.image) return raw.image;
-  if (Array.isArray(raw.image_urls) && raw.image_urls.length) {
-    return raw.image_urls[0];
+  const imageUrls = parseList(raw.image_urls);
+  if (raw.image_url) return resolveAssetUrl(raw.image_url);
+  if (raw.image) return resolveAssetUrl(raw.image);
+  if (imageUrls.length) {
+    return resolveAssetUrl(imageUrls[0]);
   }
   if (Array.isArray(raw.images) && raw.images.length) {
     const image = raw.images[0];
-    return typeof image === "string" ? image : image.url || image.path;
+    return resolveAssetUrl(
+      typeof image === "string" ? image : image.url || image.path,
+    );
   }
   return fallbackImage;
 }
@@ -40,7 +73,8 @@ function normalizeBadge(raw) {
   const badge =
     raw.badge ||
     raw.primary_badge ||
-    (Array.isArray(raw.badges) ? raw.badges[0] : null);
+    parseList(raw.badges)[0] ||
+    null;
 
   if (!badge) return null;
   if (typeof badge === "string") {
@@ -51,24 +85,81 @@ function normalizeBadge(raw) {
   return label ? { label, style: badge.style || badgeStyle(label) } : null;
 }
 
+function parseRoomTypes(raw = {}) {
+  const source = raw.room_types || raw.rooms || raw.active_room_types;
+
+  if (!source) return [];
+
+  if (Array.isArray(source)) return source;
+
+  if (typeof source === "string") {
+    return parseList(source);
+  }
+
+  if (typeof source === "object") {
+    return Object.entries(source)
+      .map(([key, value]) => {
+        if (value === false || value === null || value === undefined) return null;
+        if (typeof value === "object") {
+          return {
+            ...value,
+            type: value.type || value.room_type || key,
+            name: value.name || value.label || `${key.charAt(0).toUpperCase()}${key.slice(1)} Room`,
+          };
+        }
+        return key;
+      })
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 export function normalizeHotel(raw = {}) {
   const price = Number(raw.price ?? raw.price_per_night ?? 0);
   const rating = Number(raw.rating ?? raw.review_score ?? raw.star_rating ?? 0);
   const locationParts = [raw.location, raw.country].filter(Boolean);
+  const amenities = parseList(raw.amenities);
+  const imageUrls = parseList(raw.image_urls).map(resolveAssetUrl);
+  const rooms = parseRoomTypes(raw).map((room) => {
+    if (typeof room === "string") {
+      return {
+        type: room.toLowerCase(),
+        name: `${room.charAt(0).toUpperCase()}${room.slice(1)} Room`,
+      };
+    }
+
+    return {
+      ...room,
+      type: room.type || room.room_type || room.name?.toLowerCase() || "suite",
+      name: room.name || room.type || room.room_type || "Suite",
+      image: resolveAssetUrl(room.image || room.image_url) || firstImage(raw),
+    };
+  });
 
   return {
     ...raw,
     id: Number(raw.id),
+    slug: raw.slug,
     name: raw.name || "Untitled Hotel",
     rating,
+    reviewScore: Number(raw.review_score ?? raw.rating ?? 0),
+    starRating: Number(raw.star_rating ?? 0),
     location: locationParts.join(", ") || "Location unavailable",
+    country: raw.country || "",
+    latitude: raw.latitude,
+    longitude: raw.longitude,
     description: raw.description || "No description available yet.",
     price,
+    pricePerNight: price,
     badge: normalizeBadge(raw),
+    badges: parseList(raw.badges),
     wishlisted: Boolean(raw.wishlisted),
     image: firstImage(raw),
-    amenities: raw.amenities || [],
-    rooms: raw.room_types || raw.rooms || [],
+    images: imageUrls.length ? imageUrls : [firstImage(raw)],
+    amenities,
+    rooms,
+    bookingsCount: Number(raw.bookings_count ?? raw.bookingsCount ?? 0),
   };
 }
 
@@ -91,7 +182,12 @@ async function fetchHotels(params = {}) {
     const data = await apiFetch(`/hotels${queryString(params)}`, {
       headers: { Accept: "application/json" },
     });
-    const hotelList = data?.hotels?.data || data?.hotels || data?.data || [];
+    const hotelList =
+      data?.hotels?.data ||
+      data?.data?.data ||
+      (Array.isArray(data?.hotels) ? data.hotels : null) ||
+      (Array.isArray(data?.data) ? data.data : null) ||
+      (Array.isArray(data) ? data : []);
 
     hotels.value = hotelList.map(normalizeHotel);
     stats.value = data?.stats || {
