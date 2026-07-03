@@ -38,16 +38,34 @@ function normalizeRoomStatus(raw = {}) {
       (raw.active === false ? "maintenance" : ""),
   ).toLowerCase();
 
-  if (["occupied", "booked", "reserved", "checked_in", "checked in"].some((item) => value.includes(item))) {
+  if (
+    ["occupied", "booked", "reserved", "checked_in", "checked in"].some(
+      (item) => value.includes(item),
+    )
+  ) {
     return "Occupied";
   }
-  if (["maintenance", "repair", "out_of_service", "out of service", "inactive"].some((item) => value.includes(item))) {
+  if (
+    [
+      "maintenance",
+      "repair",
+      "out_of_service",
+      "out of service",
+      "inactive",
+    ].some((item) => value.includes(item))
+  ) {
     return "Maintenance";
   }
-  if (["cleaning", "housekeeping", "dirty"].some((item) => value.includes(item))) {
+  if (
+    ["cleaning", "housekeeping", "dirty"].some((item) => value.includes(item))
+  ) {
     return "Cleaning";
   }
-  if (["available", "vacant", "ready", "active"].some((item) => value.includes(item))) {
+  if (
+    ["available", "vacant", "ready", "active"].some((item) =>
+      value.includes(item),
+    )
+  ) {
     return "Available";
   }
   if (raw.available === true || raw.is_available === true) return "Available";
@@ -107,9 +125,11 @@ function roomImageCandidates(raw = {}) {
 }
 
 export function normalizeRoom(raw = {}) {
-  const rawType = raw.room_type || raw.type || raw.roomType || raw.category || "";
+  const rawType =
+    raw.room_type || raw.type || raw.roomType || raw.category || "";
   const normalizedType = typeMap[rawType] || rawType;
-  const label = labelMap[normalizedType] || titleCase(rawType) || "Standard King";
+  const label =
+    labelMap[normalizedType] || titleCase(rawType) || "Standard King";
   const media = roomImageCandidates(raw)
     .map((url, index) => ({
       id: `${raw.id || "room"}-${index}`,
@@ -119,16 +139,27 @@ export function normalizeRoom(raw = {}) {
 
   return {
     id: raw.id,
-    roomNumber: String(raw.room_number || raw.roomNumber || raw.name || raw.id || "Room"),
+    roomNumber: String(
+      raw.room_number || raw.roomNumber || raw.name || raw.id || "Room",
+    ),
     roomName: raw.name || raw.roomName || raw.room_number || "",
     roomType: label,
     apiRoomType: normalizedType || typeMap[label] || "standard",
-    floor: raw.floor ? `Floor ${raw.floor}` : raw.floorNumber ? `Floor ${raw.floorNumber}` : "Floor 1",
+    floor: raw.floor
+      ? `Floor ${raw.floor}`
+      : raw.floorNumber
+        ? `Floor ${raw.floorNumber}`
+        : "Floor 1",
     floorNumber: raw.floor || raw.floorNumber || "1",
     wing: raw.wing || raw.building || raw.location || "",
     status: normalizeRoomStatus(raw),
-    baseRate: numberValue(raw.base_rate ?? raw.price_per_night ?? raw.price ?? raw.baseRate),
-    maxOccupancy: numberValue(raw.max_occupancy ?? raw.max_guests ?? raw.maxOccupancy ?? raw.capacity, 2),
+    baseRate: numberValue(
+      raw.base_rate ?? raw.price_per_night ?? raw.price ?? raw.baseRate,
+    ),
+    maxOccupancy: numberValue(
+      raw.max_occupancy ?? raw.max_guests ?? raw.maxOccupancy ?? raw.capacity,
+      2,
+    ),
     description: raw.description || "",
     image: media[0]?.url || "",
     media,
@@ -139,7 +170,9 @@ export function normalizeRoom(raw = {}) {
 function computeStats(rooms) {
   const total = rooms.length;
   const occupied = rooms.filter((room) => room.status === "Occupied").length;
-  const maintenance = rooms.filter((room) => room.status === "Maintenance").length;
+  const maintenance = rooms.filter(
+    (room) => room.status === "Maintenance",
+  ).length;
   const available = rooms.filter((room) => room.status === "Available").length;
 
   return {
@@ -154,11 +187,7 @@ function computeStats(rooms) {
 }
 
 function roomRowsFromResponse(data) {
-  const paginated =
-    data?.rooms ||
-    data?.data?.rooms ||
-    data?.data ||
-    data;
+  const paginated = data?.rooms || data?.data?.rooms || data?.data || data;
 
   if (Array.isArray(paginated)) return paginated;
   if (Array.isArray(paginated?.data)) return paginated.data;
@@ -201,7 +230,7 @@ function formToRoomPayload(form) {
   const hasUploads = form.mediaFiles.some((item) => item.file);
   const imageUrls = form.mediaFiles
     .filter((item) => !item.file)
-    .map((item) => item.preview || item.url)
+    .map((item) => item.url)
     .filter(Boolean);
 
   const payload = {
@@ -223,7 +252,11 @@ function formToRoomPayload(form) {
   Object.entries(payload).forEach(([key, value]) => {
     if (value === undefined || value === null || value === "") return;
     if (Array.isArray(value)) {
-      value.forEach((item) => data.append(`${key}[]`, item));
+      // When sending an array with FormData, append each item.
+      // The backend (e.g., Laravel) will automatically convert image_urls[] into an array.
+      value.forEach((item) => {
+        data.append(`${key}[]`, item);
+      });
     } else {
       data.append(key, value);
     }
@@ -266,7 +299,8 @@ export async function fetchRoomsForHotel(hotelId) {
   const { rooms } = await fetchRooms({ hotel_id: hotelId });
 
   return rooms.filter((room) => {
-    const rawHotelId = room.raw?.hotel_id ?? room.raw?.hotelId ?? room.raw?.hotel?.id;
+    const rawHotelId =
+      room.raw?.hotel_id ?? room.raw?.hotelId ?? room.raw?.hotel?.id;
     return rawHotelId == null || String(rawHotelId) === String(hotelId);
   });
 }

@@ -2,8 +2,7 @@ import { ref } from "vue";
 import { API_URL, apiFetch } from "./client.js";
 import { clearApiToken, ensureApiToken } from "../auth.js";
 
-export const fallbackImage =
-  "";
+export const fallbackImage = "";
 
 const hotels = ref([]);
 const stats = ref({
@@ -474,13 +473,17 @@ export const hotelApi = {
   },
   async update(id, payload) {
     await ensureApiToken();
-    if (payload instanceof FormData && !payload.has("_method")) {
+
+    const isFormData = payload instanceof FormData;
+    if (isFormData && !payload.has("_method")) {
       payload.append("_method", "PUT");
     }
-    const options =
-      payload instanceof FormData
-        ? { method: "POST", body: payload }
-        : { method: "PUT", body: JSON.stringify(payload) };
+
+    const options = {
+      method: isFormData ? "POST" : "PUT",
+      body: isFormData ? payload : JSON.stringify(payload),
+    };
+
     try {
       const response = await apiFetch(`/hotels/${id}`, options);
       return saveHotelToStore(
