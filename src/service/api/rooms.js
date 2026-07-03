@@ -1,6 +1,7 @@
 import { roomApi } from "./client.js";
 import { rooms as demoRooms, stats as demoStats } from "./Data_room.js";
 import { clearApiToken, ensureApiToken, hasApiToken } from "../auth.js";
+import { resolveAssetUrl } from "./Hotel.js";
 
 const typeMap = {
   "Standard King": "standard",
@@ -50,7 +51,17 @@ export function normalizeRoom(raw = {}) {
     maxOccupancy: numberValue(raw.max_occupancy ?? raw.max_guests ?? raw.maxOccupancy ?? raw.capacity, 2),
     description: raw.description || "",
     media: (raw.images || raw.image_urls || [])
-      .map((url, index) => ({ id: `${raw.id || "room"}-${index}`, url }))
+      .map((image, index) => {
+        const url =
+          typeof image === "string"
+            ? image
+            : image.url || image.path || image.image_url || image.image_path;
+
+        return {
+          id: image.id || `${raw.id || "room"}-${index}`,
+          url: resolveAssetUrl(url),
+        };
+      })
       .filter((item) => item.url),
     raw,
   };
@@ -73,6 +84,21 @@ function computeStats(rooms) {
   };
 }
 
+function roomRowsFromResponse(data) {
+  const paginated =
+    data?.rooms ||
+    data?.data?.rooms ||
+    data?.data ||
+    data;
+
+  if (Array.isArray(paginated)) return paginated;
+  if (Array.isArray(paginated?.data)) return paginated.data;
+  if (Array.isArray(data?.rooms?.data)) return data.rooms.data;
+  if (Array.isArray(data?.data?.data)) return data.data.data;
+
+  return [];
+}
+
 export async function fetchRooms() {
   await ensureApiToken();
 
@@ -80,16 +106,8 @@ export async function fetchRooms() {
     return { rooms: demoRooms.map(normalizeRoom), stats: demoStats, source: "demo" };
   }
 
-  const data = await roomApi.list({ per_page: 100 });
-  const rows =
-    data.rooms?.data ||
-    data.rooms ||
-    data.data?.rooms?.data ||
-    data.data?.rooms ||
-    data.data?.data ||
-    data.data ||
-    data ||
-    [];
+  const data = await roomApi.list({ per_page: 1000 });
+  const rows = roomRowsFromResponse(data);
   const rooms = rows.map(normalizeRoom);
 
   return {

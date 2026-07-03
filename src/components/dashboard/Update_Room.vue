@@ -336,6 +336,94 @@
                 </button>
               </div>
             </div>
+
+            <!-- File upload -->
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2"
+                >Upload image files</label
+              >
+              <label
+                class="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-5 text-center transition hover:border-emerald-300 hover:bg-emerald-50/50"
+              >
+                <svg
+                  class="mb-2 h-6 w-6 text-emerald-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12V4m0 0l-4 4m4-4l4 4"
+                  />
+                </svg>
+                <span class="text-sm font-medium text-slate-700"
+                  >Choose room photos</span
+                >
+                <span class="mt-1 text-xs text-slate-400"
+                  >JPG or PNG, up to 5MB each</span
+                >
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  class="hidden"
+                  @change="handleFileUpload"
+                />
+              </label>
+            </div>
+
+            <!-- Preview thumbnails -->
+            <div
+              v-if="form.mediaFiles.length"
+              class="flex flex-wrap gap-2 mt-3"
+            >
+              <div
+                v-for="(file, i) in form.mediaFiles"
+                :key="i"
+                class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-slate-200 group"
+              >
+                <img :src="file.preview" class="w-full h-full object-cover" />
+                <div
+                  v-if="file.file"
+                  class="absolute top-1 left-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded"
+                >
+                  File
+                </div>
+                <div
+                  v-else-if="!file.existing"
+                  class="absolute top-1 left-1 bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded"
+                >
+                  New URL
+                </div>
+                <div
+                  v-else
+                  class="absolute top-1 left-1 bg-gray-500 text-white text-xs px-1.5 py-0.5 rounded"
+                >
+                  Existing
+                </div>
+                <button
+                  type="button"
+                  @click="removeFile(i)"
+                  class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                >
+                  <svg
+                    class="w-4 h-4 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

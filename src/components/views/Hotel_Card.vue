@@ -164,6 +164,7 @@
               :src="property.image"
               :alt="property.name"
               class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              @error="setImageFallback"
             />
             <span
               v-if="property.badge"
@@ -395,6 +396,7 @@
                 :src="property.image"
                 :alt="property.name"
                 class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                @error="setImageFallback"
               />
               <span
                 v-if="property.badge"
@@ -498,11 +500,12 @@
 </template>
 
 <script setup>
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { ref, computed, onMounted, watch } from "vue";
-import hotelApi from "../../service/api/Hotel.js";
+import hotelApi, { fallbackImage } from "../../service/api/Hotel.js";
 
 const router = useRouter();
+const route = useRoute();
 
 const ITEMS_PER_PAGE = 8;
 
@@ -555,7 +558,9 @@ const filteredProperties = computed(() => {
   });
 });
 
-const apiMatches = computed(() => stats.value?.matches ?? filteredProperties.value.length);
+const apiMatches = computed(
+  () => stats.value?.matches ?? filteredProperties.value.length,
+);
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredProperties.value.length / ITEMS_PER_PAGE)),
@@ -634,9 +639,27 @@ function closeProperty() {
   selectedProperty.value = null;
 }
 
+function setImageFallback(event) {
+  if (event.target.src !== fallbackImage) {
+    event.target.src = fallbackImage;
+  }
+}
+
 watch(sortOption, () => {
   currentPage.value = 1;
 });
+
+// Refetch hotels when navigating to the hotels route
+let previousRouteName = null;
+watch(
+  () => route.name,
+  (currentRouteName) => {
+    if (currentRouteName === "hotels" && previousRouteName !== "hotels") {
+      fetchHotels({ per_page: 100 }).catch(() => {});
+    }
+    previousRouteName = currentRouteName;
+  },
+);
 
 onMounted(() => {
   fetchHotels({ per_page: 100 }).catch(() => {});
@@ -645,7 +668,7 @@ onMounted(() => {
 
 <style scoped>
 .line-clamp-1 {
-  display: -webkit-box;     
+  display: -webkit-box;
   -webkit-line-clamp: 1;
   line-clamp: 1;
   -webkit-box-orient: vertical;

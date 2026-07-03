@@ -2,7 +2,7 @@ import { ref } from "vue";
 import { API_URL, apiFetch } from "./client.js";
 import { clearApiToken, ensureApiToken } from "../auth.js";
 
-const fallbackImage =
+export const fallbackImage =
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&q=80";
 
 const hotels = ref([]);
@@ -15,6 +15,12 @@ const loading = ref(false);
 const error = ref("");
 
 const apiOrigin = API_URL.replace(/\/api\/?$/, "");
+
+console.log("🔧 Hotel API Configuration:", {
+  API_URL,
+  apiOrigin,
+  env: import.meta.env.VITE_API_URL,
+});
 
 function parseList(value) {
   if (Array.isArray(value)) return value;
@@ -37,11 +43,51 @@ function parseList(value) {
   return [];
 }
 
-function resolveAssetUrl(url) {
+export function resolveAssetUrl(url) {
   if (!url) return "";
-  if (/^https?:\/\//i.test(url)) return url;
-  if (url.startsWith("/")) return `${apiOrigin}${url}`;
-  return `${apiOrigin}/${url}`;
+
+  const normalizedUrl = String(url).trim().replace(/\\/g, "/");
+  if (!normalizedUrl) return "";
+
+  // Already an absolute URL
+  if (/^https?:\/\//i.test(normalizedUrl)) {
+    console.log(`  resolveAssetUrl: ${normalizedUrl} -> absolute URL`);
+    return normalizedUrl;
+  }
+
+  const withoutLeadingSlash = normalizedUrl.replace(/^\/+/, "");
+  const publicStoragePath = withoutLeadingSlash
+    .replace(/^public\//, "storage/")
+    .replace(/^storage\/app\/public\//, "storage/");
+
+  // Path starting with /
+  if (normalizedUrl.startsWith("/")) {
+    const resolved = `${apiOrigin}${normalizedUrl}`;
+    console.log(
+      `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (apiOrigin: ${apiOrigin})`,
+    );
+    return resolved;
+  }
+
+  // Handle relative paths that might have storage/uploads folders
+  if (
+    publicStoragePath.includes("storage/") ||
+    publicStoragePath.includes("uploads/")
+  ) {
+    const resolved = `${apiOrigin}/${publicStoragePath}`
+      .replace(/\/\//g, "/")
+      .replace(/:\//, "://");
+    console.log(
+      `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (storage/uploads path)`,
+    );
+    return resolved;
+  }
+
+  const resolved = `${apiOrigin}/${publicStoragePath}`;
+  console.log(
+    `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (relative path)`,
+  );
+  return resolved;
 }
 
 function badgeStyle(label = "") {
@@ -56,26 +102,75 @@ function badgeStyle(label = "") {
 
 function firstImage(raw) {
   const imageUrls = parseList(raw.image_urls);
-  if (raw.image_url) return resolveAssetUrl(raw.image_url);
-  if (raw.image) return resolveAssetUrl(raw.image);
+
+  // Check for various image field names that API might return
+  if (raw.image) {
+    const resolved = resolveAssetUrl(raw.image);
+    console.log("✓ Found image in image:", { raw: raw.image, resolved });
+    return resolved;
+  }
+  if (raw.image_url) {
+    const resolved = resolveAssetUrl(raw.image_url);
+    console.log("✓ Found image in image_url:", {
+      raw: raw.image_url,
+      resolved,
+    });
+    return resolved;
+  }
+  if (raw.image_path) {
+    const resolved = resolveAssetUrl(raw.image_path);
+    console.log("✓ Found image in image_path:", {
+      raw: raw.image_path,
+      resolved,
+    });
+    return resolved;
+  }
+  if (raw.featured_image) {
+    const resolved = resolveAssetUrl(raw.featured_image);
+    console.log("✓ Found image in featured_image:", {
+      raw: raw.featured_image,
+      resolved,
+    });
+    return resolved;
+  }
+  if (raw.cover_image) {
+    const resolved = resolveAssetUrl(raw.cover_image);
+    console.log("✓ Found image in cover_image:", {
+      raw: raw.cover_image,
+      resolved,
+    });
+    return resolved;
+  }
+
   if (imageUrls.length) {
-    return resolveAssetUrl(imageUrls[0]);
+    const resolved = resolveAssetUrl(imageUrls[0]);
+    console.log("✓ Found image in image_urls array:", {
+      raw: imageUrls[0],
+      resolved,
+    });
+    return resolved;
   }
   if (Array.isArray(raw.images) && raw.images.length) {
     const image = raw.images[0];
-    return resolveAssetUrl(
-      typeof image === "string" ? image : image.url || image.path,
-    );
+    const url = typeof image === "string" ? image : image.url || image.path;
+    const resolved = resolveAssetUrl(url);
+    console.log("✓ Found image in images array:", { raw: url, resolved });
+    return resolved;
+  }
+
+  console.log(
+    "✗ No image found, using fallback. Image-related fields:",
+    Object.keys(raw).filter((k) => k.includes("image")),
+  );
+  if (Object.keys(raw).length > 0) {
+    console.log("  All available fields in response:", Object.keys(raw));
   }
   return fallbackImage;
 }
 
 function normalizeBadge(raw) {
   const badge =
-    raw.badge ||
-    raw.primary_badge ||
-    parseList(raw.badges)[0] ||
-    null;
+    raw.badge || raw.primary_badge || parseList(raw.badges)[0] || null;
 
   if (!badge) return null;
   if (typeof badge === "string") {
@@ -105,12 +200,16 @@ function parseRoomTypes(raw = {}) {
   if (typeof source === "object") {
     return Object.entries(source)
       .map(([key, value]) => {
-        if (value === false || value === null || value === undefined) return null;
+        if (value === false || value === null || value === undefined)
+          return null;
         if (typeof value === "object") {
           return {
             ...value,
             type: value.type || value.room_type || key,
-            name: value.name || value.label || `${key.charAt(0).toUpperCase()}${key.slice(1)} Room`,
+            name:
+              value.name ||
+              value.label ||
+              `${key.charAt(0).toUpperCase()}${key.slice(1)} Room`,
           };
         }
         return key;
@@ -140,12 +239,33 @@ export function normalizeHotel(raw = {}) {
     return {
       ...room,
       type: roomType,
-      name: room.name || room.roomName || room.room_number || `${roomType} Room`,
-      price: Number(room.price ?? room.price_per_night ?? room.base_rate ?? price),
-      max_guests: Number(room.max_guests ?? room.max_occupancy ?? room.capacity ?? 2),
-      image: resolveAssetUrl(room.image || room.image_url) || firstImage(raw),
+      name:
+        room.name || room.roomName || room.room_number || `${roomType} Room`,
+      price: Number(
+        room.price ?? room.price_per_night ?? room.base_rate ?? price,
+      ),
+      max_guests: Number(
+        room.max_guests ?? room.max_occupancy ?? room.capacity ?? 2,
+      ),
+      image: resolveAssetUrl(room.image || room.image_url) || fallbackImage,
       available: room.available ?? room.status !== "maintenance",
     };
+  });
+
+  const finalImage = firstImage(raw);
+  console.log("Hotel normalized:", {
+    name: raw.name,
+    apiOrigin,
+    rawImageFields: {
+      image_url: raw.image_url,
+      image: raw.image,
+      image_path: raw.image_path,
+      featured_image: raw.featured_image,
+      cover_image: raw.cover_image,
+      image_urls: raw.image_urls,
+    },
+    finalImage,
+    allRawKeys: Object.keys(raw),
   });
 
   return {
@@ -166,8 +286,8 @@ export function normalizeHotel(raw = {}) {
     badge: normalizeBadge(raw),
     badges: parseList(raw.badges),
     wishlisted: Boolean(raw.wishlisted),
-    image: firstImage(raw),
-    images: imageUrls.length ? imageUrls : [firstImage(raw)],
+    image: finalImage,
+    images: imageUrls.length ? imageUrls : [finalImage],
     amenities,
     rooms,
     bookingsCount: Number(raw.bookings_count ?? raw.bookingsCount ?? 0),
@@ -226,7 +346,9 @@ async function fetchHotel(id) {
     });
     const rawHotel = data?.hotel || data?.data || data;
     const hotel = normalizeHotel(rawHotel);
-    const existingIndex = hotels.value.findIndex((item) => item.id === hotel.id);
+    const existingIndex = hotels.value.findIndex(
+      (item) => item.id === hotel.id,
+    );
 
     if (existingIndex >= 0) {
       hotels.value.splice(existingIndex, 1, hotel);
@@ -253,12 +375,35 @@ export const hotelApi = {
         ? { method: "POST", body: payload }
         : { method: "POST", body: JSON.stringify(payload) };
     try {
-      return await apiFetch("/hotels", options);
+      const response = await apiFetch("/hotels", options);
+      console.log("Raw API response from hotel creation:", response);
+      console.log("Response keys:", response ? Object.keys(response) : "null");
+
+      // Handle different API response formats
+      const hotelData = response?.data || response?.hotel || response;
+      console.log("Extracted hotel data:", hotelData);
+      console.log("Hotel data image fields:", {
+        image: hotelData?.image,
+        image_url: hotelData?.image_url,
+        image_path: hotelData?.image_path,
+      });
+
+      // Normalize to trigger image extraction logging
+      console.log("📍 Now normalizing hotel data to extract image...");
+      const normalized = normalizeHotel(hotelData);
+      console.log("✅ Normalized hotel with image:", normalized.image);
+
+      return normalized;
     } catch (err) {
       if (err.status !== 401) throw err;
       clearApiToken();
       await ensureApiToken({ refresh: true });
-      return apiFetch("/hotels", options);
+      const response = await apiFetch("/hotels", options);
+      console.log("Retry response from hotel creation:", response);
+      const hotelData = response?.data || response?.hotel || response;
+      console.log("📍 Now normalizing hotel data from retry...");
+      const normalized = normalizeHotel(hotelData);
+      return normalized;
     }
   },
   async update(id, payload) {

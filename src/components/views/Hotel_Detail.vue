@@ -93,6 +93,7 @@
           :src="hotel.image"
           :alt="hotel.name"
           class="w-full h-full object-cover"
+          @error="setImageFallback"
         />
       </div>
     </div>
@@ -261,6 +262,7 @@
                   :src="room.image"
                   :alt="room.name"
                   class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                  @error="setImageFallback"
                 />
                 <span
                   v-if="room.badge"
@@ -495,7 +497,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 
 import { useRoute, useRouter } from "vue-router";
-import hotelApi from "../../service/api/Hotel.js";
+import hotelApi, { fallbackImage } from "../../service/api/Hotel.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -760,6 +762,12 @@ function reserveNow() {
 
 function toggleWishlist() {
   if (hotel.value) hotel.value.wishlisted = !hotel.value.wishlisted;
+}
+
+function setImageFallback(event) {
+  if (event.target.src !== fallbackImage) {
+    event.target.src = fallbackImage;
+  }
 }
 
 function goBack() {
