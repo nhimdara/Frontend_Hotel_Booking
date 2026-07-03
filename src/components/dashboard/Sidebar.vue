@@ -252,6 +252,7 @@ import {
   DashboardIcon,
   BookingsIcon,
   GuestsIcon,
+  HotelManagementIcon,
   RoomManagementIcon,
   SettingsIcon,
 } from "./icons.js";
@@ -260,6 +261,7 @@ const navItems = [
   { name: "Overview", to: "/overview", icon: DashboardIcon },
   { name: "Bookings", to: "/bookings", icon: BookingsIcon },
   { name: "Guests", to: "/guests", icon: GuestsIcon },
+  { name: "Hotel Management", to: "/hotel-management", icon: HotelManagementIcon },
   { name: "Room Management", to: "/room-management", icon: RoomManagementIcon },
   { name: "Settings", to: "/settings", icon: SettingsIcon },
 ];

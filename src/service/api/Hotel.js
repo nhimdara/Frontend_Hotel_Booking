@@ -3,7 +3,7 @@ import { API_URL, apiFetch } from "./client.js";
 import { clearApiToken, ensureApiToken } from "../auth.js";
 
 export const fallbackImage =
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&q=80";
+  "";
 
 const hotels = ref([]);
 const stats = ref({
@@ -41,6 +41,26 @@ function parseList(value) {
 
   if (typeof value === "object") return Object.values(value);
   return [];
+}
+
+function uniqueList(items) {
+  return [...new Set(items.filter(Boolean))];
+}
+
+function imageUrlFromValue(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+
+  return (
+    value.url ||
+    value.path ||
+    value.image ||
+    value.image_url ||
+    value.image_path ||
+    value.featured_image ||
+    value.cover_image ||
+    ""
+  );
 }
 
 export function resolveAssetUrl(url) {
@@ -88,6 +108,12 @@ export function resolveAssetUrl(url) {
     `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (relative path)`,
   );
   return resolved;
+}
+
+function versionedAssetUrl(url, version) {
+  if (!url || !version || !url.startsWith(apiOrigin)) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${encodeURIComponent(version)}`;
 }
 
 function badgeStyle(label = "") {
@@ -168,6 +194,26 @@ function firstImage(raw) {
   return fallbackImage;
 }
 
+function imageCandidates(raw = {}) {
+  return uniqueList([
+    imageUrlFromValue(raw.image_url),
+    imageUrlFromValue(raw.image),
+    imageUrlFromValue(raw.image_path),
+    imageUrlFromValue(raw.featured_image),
+    imageUrlFromValue(raw.cover_image),
+    ...parseList(raw.image_urls).map(imageUrlFromValue),
+    ...parseList(raw.images).map(imageUrlFromValue),
+  ]);
+}
+
+function hotelImage(raw = {}) {
+  const candidates = imageCandidates(raw);
+  if (!candidates.length) return fallbackImage;
+
+  const resolved = resolveAssetUrl(candidates[0]);
+  return versionedAssetUrl(resolved, raw.updated_at || raw.updatedAt);
+}
+
 function normalizeBadge(raw) {
   const badge =
     raw.badge || raw.primary_badge || parseList(raw.badges)[0] || null;
@@ -225,7 +271,10 @@ export function normalizeHotel(raw = {}) {
   const rating = Number(raw.rating ?? raw.review_score ?? raw.star_rating ?? 0);
   const locationParts = [raw.location, raw.country].filter(Boolean);
   const amenities = parseList(raw.amenities);
-  const imageUrls = parseList(raw.image_urls).map(resolveAssetUrl);
+  const imageUrls = imageCandidates(raw)
+    .map(resolveAssetUrl)
+    .map((url) => versionedAssetUrl(url, raw.updated_at || raw.updatedAt))
+    .filter(Boolean);
   const rooms = parseRoomTypes(raw).map((room) => {
     if (typeof room === "string") {
       return {
@@ -235,6 +284,17 @@ export function normalizeHotel(raw = {}) {
     }
 
     const roomType = room.type || room.room_type || room.category || "standard";
+    const roomImages = [
+      imageUrlFromValue(room.image_url),
+      imageUrlFromValue(room.image),
+      imageUrlFromValue(room.image_path),
+      imageUrlFromValue(room.featured_image),
+      imageUrlFromValue(room.cover_image),
+      ...parseList(room.image_urls).map(imageUrlFromValue),
+      ...parseList(room.images).map(imageUrlFromValue),
+      ...parseList(room.media).map(imageUrlFromValue),
+      ...parseList(room.photos).map(imageUrlFromValue),
+    ].filter(Boolean);
 
     return {
       ...room,
@@ -247,12 +307,12 @@ export function normalizeHotel(raw = {}) {
       max_guests: Number(
         room.max_guests ?? room.max_occupancy ?? room.capacity ?? 2,
       ),
-      image: resolveAssetUrl(room.image || room.image_url) || fallbackImage,
+      image: roomImages.length ? resolveAssetUrl(roomImages[0]) : "",
       available: room.available ?? room.status !== "maintenance",
     };
   });
 
-  const finalImage = firstImage(raw);
+  const finalImage = hotelImage(raw);
   console.log("Hotel normalized:", {
     name: raw.name,
     apiOrigin,
@@ -292,6 +352,22 @@ export function normalizeHotel(raw = {}) {
     rooms,
     bookingsCount: Number(raw.bookings_count ?? raw.bookingsCount ?? 0),
   };
+}
+
+function saveHotelToStore(hotel) {
+  if (!hotel?.id) return hotel;
+
+  const existingIndex = hotels.value.findIndex(
+    (item) => String(item.id) === String(hotel.id),
+  );
+
+  if (existingIndex >= 0) {
+    hotels.value.splice(existingIndex, 1, hotel);
+  } else {
+    hotels.value.unshift(hotel);
+  }
+
+  return hotel;
 }
 
 function queryString(params = {}) {
@@ -346,17 +422,7 @@ async function fetchHotel(id) {
     });
     const rawHotel = data?.hotel || data?.data || data;
     const hotel = normalizeHotel(rawHotel);
-    const existingIndex = hotels.value.findIndex(
-      (item) => item.id === hotel.id,
-    );
-
-    if (existingIndex >= 0) {
-      hotels.value.splice(existingIndex, 1, hotel);
-    } else {
-      hotels.value.push(hotel);
-    }
-
-    return hotel;
+    return saveHotelToStore(hotel);
   } catch (err) {
     error.value = err.message || "Could not load hotel.";
     throw err;
@@ -393,7 +459,7 @@ export const hotelApi = {
       const normalized = normalizeHotel(hotelData);
       console.log("✅ Normalized hotel with image:", normalized.image);
 
-      return normalized;
+      return saveHotelToStore(normalized);
     } catch (err) {
       if (err.status !== 401) throw err;
       clearApiToken();
@@ -403,26 +469,40 @@ export const hotelApi = {
       const hotelData = response?.data || response?.hotel || response;
       console.log("📍 Now normalizing hotel data from retry...");
       const normalized = normalizeHotel(hotelData);
-      return normalized;
+      return saveHotelToStore(normalized);
     }
   },
   async update(id, payload) {
     await ensureApiToken();
+    if (payload instanceof FormData && !payload.has("_method")) {
+      payload.append("_method", "PUT");
+    }
     const options =
       payload instanceof FormData
         ? { method: "POST", body: payload }
         : { method: "PUT", body: JSON.stringify(payload) };
     try {
-      return await apiFetch(`/hotels/${id}`, options);
+      const response = await apiFetch(`/hotels/${id}`, options);
+      return saveHotelToStore(
+        normalizeHotel(response?.data || response?.hotel || response),
+      );
     } catch (err) {
       if (err.status !== 401) throw err;
       clearApiToken();
       await ensureApiToken({ refresh: true });
-      return apiFetch(`/hotels/${id}`, options);
+      const response = await apiFetch(`/hotels/${id}`, options);
+      return saveHotelToStore(
+        normalizeHotel(response?.data || response?.hotel || response),
+      );
     }
   },
   remove(id) {
-    return apiFetch(`/hotels/${id}`, { method: "DELETE" });
+    return apiFetch(`/hotels/${id}`, { method: "DELETE" }).then((response) => {
+      hotels.value = hotels.value.filter(
+        (hotel) => String(hotel.id) !== String(id),
+      );
+      return response;
+    });
   },
 };
 

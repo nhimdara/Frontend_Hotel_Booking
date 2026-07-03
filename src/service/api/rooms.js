@@ -1,5 +1,4 @@
 import { roomApi } from "./client.js";
-import { rooms as demoRooms, stats as demoStats } from "./Data_room.js";
 import { clearApiToken, ensureApiToken, hasApiToken } from "../auth.js";
 import { resolveAssetUrl } from "./Hotel.js";
 
@@ -31,11 +30,92 @@ function titleCase(value = "") {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function normalizeRoomStatus(raw = {}) {
+  const value = String(
+    raw.status ||
+      raw.room_status ||
+      raw.availability_status ||
+      (raw.active === false ? "maintenance" : ""),
+  ).toLowerCase();
+
+  if (["occupied", "booked", "reserved", "checked_in", "checked in"].some((item) => value.includes(item))) {
+    return "Occupied";
+  }
+  if (["maintenance", "repair", "out_of_service", "out of service", "inactive"].some((item) => value.includes(item))) {
+    return "Maintenance";
+  }
+  if (["cleaning", "housekeeping", "dirty"].some((item) => value.includes(item))) {
+    return "Cleaning";
+  }
+  if (["available", "vacant", "ready", "active"].some((item) => value.includes(item))) {
+    return "Available";
+  }
+  if (raw.available === true || raw.is_available === true) return "Available";
+  if (raw.available === false || raw.is_available === false) return "Occupied";
+
+  return "Available";
+}
+
+function parseList(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (!value) return [];
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [value];
+    } catch {
+      return [value];
+    }
+  }
+
+  if (typeof value === "object") return Object.values(value);
+  return [];
+}
+
+function imageUrlFromValue(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+
+  return (
+    value.url ||
+    value.path ||
+    value.image ||
+    value.image_url ||
+    value.image_path ||
+    value.featured_image ||
+    value.cover_image ||
+    value.thumbnail ||
+    ""
+  );
+}
+
+function roomImageCandidates(raw = {}) {
+  return [
+    imageUrlFromValue(raw.image_url),
+    imageUrlFromValue(raw.image),
+    imageUrlFromValue(raw.image_path),
+    imageUrlFromValue(raw.featured_image),
+    imageUrlFromValue(raw.cover_image),
+    imageUrlFromValue(raw.thumbnail),
+    ...parseList(raw.image_urls).map(imageUrlFromValue),
+    ...parseList(raw.images).map(imageUrlFromValue),
+    ...parseList(raw.media).map(imageUrlFromValue),
+    ...parseList(raw.photos).map(imageUrlFromValue),
+  ].filter(Boolean);
+}
+
 export function normalizeRoom(raw = {}) {
   const rawType = raw.room_type || raw.type || raw.roomType || raw.category || "";
   const normalizedType = typeMap[rawType] || rawType;
   const label = labelMap[normalizedType] || titleCase(rawType) || "Standard King";
-  const status = raw.status || (raw.active === false ? "Maintenance" : "Available");
+  const media = roomImageCandidates(raw)
+    .map((url, index) => ({
+      id: `${raw.id || "room"}-${index}`,
+      url: resolveAssetUrl(url),
+    }))
+    .filter((item) => item.url);
 
   return {
     id: raw.id,
@@ -46,23 +126,12 @@ export function normalizeRoom(raw = {}) {
     floor: raw.floor ? `Floor ${raw.floor}` : raw.floorNumber ? `Floor ${raw.floorNumber}` : "Floor 1",
     floorNumber: raw.floor || raw.floorNumber || "1",
     wing: raw.wing || raw.building || raw.location || "",
-    status: titleCase(status),
+    status: normalizeRoomStatus(raw),
     baseRate: numberValue(raw.base_rate ?? raw.price_per_night ?? raw.price ?? raw.baseRate),
     maxOccupancy: numberValue(raw.max_occupancy ?? raw.max_guests ?? raw.maxOccupancy ?? raw.capacity, 2),
     description: raw.description || "",
-    media: (raw.images || raw.image_urls || [])
-      .map((image, index) => {
-        const url =
-          typeof image === "string"
-            ? image
-            : image.url || image.path || image.image_url || image.image_path;
-
-        return {
-          id: image.id || `${raw.id || "room"}-${index}`,
-          url: resolveAssetUrl(url),
-        };
-      })
-      .filter((item) => item.url),
+    image: media[0]?.url || "",
+    media,
     raw,
   };
 }
@@ -77,7 +146,7 @@ function computeStats(rooms) {
     totalRooms: { value: total, badge: "From API" },
     occupied: {
       value: occupied,
-      badge: total ? `${Math.round((occupied / total) * 100)}% Occupancy` : "0% Occupancy",
+      badge: `${occupied} of ${total} Occupied`,
     },
     maintenance: { value: maintenance, badge: "Requires Attention" },
     available: { value: available, badge: "Ready to Book" },
@@ -99,14 +168,17 @@ function roomRowsFromResponse(data) {
   return [];
 }
 
-export async function fetchRooms() {
-  await ensureApiToken();
-
+function requireApiToken() {
   if (!hasApiToken()) {
-    return { rooms: demoRooms.map(normalizeRoom), stats: demoStats, source: "demo" };
+    throw new Error("API token is required to load rooms.");
   }
+}
 
-  const data = await roomApi.list({ per_page: 1000 });
+export async function fetchRooms(params = {}) {
+  await ensureApiToken();
+  requireApiToken();
+
+  const data = await roomApi.list({ per_page: 1000, ...params });
   const rows = roomRowsFromResponse(data);
   const rooms = rows.map(normalizeRoom);
 
@@ -119,11 +191,7 @@ export async function fetchRooms() {
 
 export async function fetchRoom(id) {
   await ensureApiToken();
-
-  if (!hasApiToken()) {
-    const room = demoRooms.find((item) => String(item.id) === String(id));
-    return normalizeRoom(room || { id });
-  }
+  requireApiToken();
 
   const data = await roomApi.show(id);
   return normalizeRoom(data.room || data.data || data);
@@ -169,20 +237,7 @@ function formToRoomPayload(form) {
 
 export async function createRoom(form) {
   await ensureApiToken();
-
-  if (!hasApiToken()) {
-    return normalizeRoom({
-      id: `local-${Date.now()}`,
-      room_number: form.roomName,
-      room_type: typeMap[form.roomType] || form.roomType,
-      floor: form.floorNumber,
-      wing: form.wing,
-      price_per_night: form.baseRate,
-      max_guests: form.maxOccupancy,
-      description: form.description,
-      image_urls: form.mediaFiles.map((file) => file.preview).filter(Boolean),
-    });
-  }
+  requireApiToken();
 
   const payload = formToRoomPayload(form);
   let data;
@@ -201,21 +256,71 @@ export async function createRoom(form) {
 
 export async function updateRoom(id, form) {
   await ensureApiToken();
-
-  if (!hasApiToken()) {
-    return normalizeRoom({
-      id,
-      room_number: form.roomName,
-      room_type: typeMap[form.roomType] || form.roomType,
-      floor: form.floorNumber,
-      wing: form.wing,
-      price_per_night: form.baseRate,
-      max_guests: form.maxOccupancy,
-      description: form.description,
-      image_urls: form.mediaFiles.map((file) => file.preview).filter(Boolean),
-    });
-  }
+  requireApiToken();
 
   const data = await roomApi.update(id, formToRoomPayload(form));
   return normalizeRoom(data.room || data.data || data);
+}
+
+export async function fetchRoomsForHotel(hotelId) {
+  const { rooms } = await fetchRooms({ hotel_id: hotelId });
+
+  return rooms.filter((room) => {
+    const rawHotelId = room.raw?.hotel_id ?? room.raw?.hotelId ?? room.raw?.hotel?.id;
+    return rawHotelId == null || String(rawHotelId) === String(hotelId);
+  });
+}
+
+function seedRoomFormsForHotel(hotel = {}) {
+  const basePrice = numberValue(hotel.pricePerNight ?? hotel.price ?? 120, 120);
+
+  return [
+    {
+      hotelId: hotel.id,
+      roomName: `${hotel.name || "Hotel"} Standard 101`,
+      roomType: "Standard King",
+      floorNumber: "1",
+      wing: "Main",
+      baseRate: Math.max(1, Math.round(basePrice)),
+      maxOccupancy: 2,
+      description: `A comfortable standard room at ${hotel.name || "this hotel"}.`,
+      mediaFiles: [],
+    },
+    {
+      hotelId: hotel.id,
+      roomName: `${hotel.name || "Hotel"} Deluxe 201`,
+      roomType: "Deluxe King",
+      floorNumber: "2",
+      wing: "Main",
+      baseRate: Math.max(1, Math.round(basePrice * 1.25)),
+      maxOccupancy: 3,
+      description: `A larger deluxe room with upgraded amenities at ${hotel.name || "this hotel"}.`,
+      mediaFiles: [],
+    },
+    {
+      hotelId: hotel.id,
+      roomName: `${hotel.name || "Hotel"} Suite 301`,
+      roomType: "Junior Suite",
+      floorNumber: "3",
+      wing: "Main",
+      baseRate: Math.max(1, Math.round(basePrice * 1.6)),
+      maxOccupancy: 4,
+      description: `A spacious suite for guests who want extra comfort at ${hotel.name || "this hotel"}.`,
+      mediaFiles: [],
+    },
+  ];
+}
+
+export async function ensureRoomsForHotel(hotel) {
+  if (!hotel?.id) return [];
+
+  const existingRooms = await fetchRoomsForHotel(hotel.id);
+  if (existingRooms.length) return existingRooms;
+
+  const createdRooms = [];
+  for (const form of seedRoomFormsForHotel(hotel)) {
+    createdRooms.push(await createRoom(form));
+  }
+
+  return createdRooms;
 }

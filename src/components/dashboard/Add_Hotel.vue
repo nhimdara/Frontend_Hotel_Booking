@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-slate-50 p-4 font-sans text-slate-800 sm:p-6">
     <div class="w-full">
       <div class="flex items-center gap-1.5 text-xs text-slate-400">
-        <span>Room Management</span>
+        <span>Hotel Management</span>
         <svg
           class="h-3 w-3"
           fill="none"
@@ -103,32 +103,10 @@
               >Add image</span
             >
 
-            <!-- URL Input -->
-            <div class="mb-4">
-              <label class="text-sm font-medium text-slate-700 mb-2 block"
-                >By URL link</label
-              >
-              <div class="flex gap-2">
-                <input
-                  v-model="imageUrlInput"
-                  type="url"
-                  placeholder="https://example.com/hotel.jpg"
-                  class="flex-1 text-sm text-slate-700 placeholder:text-slate-400 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-200/70 focus:border-emerald-300 transition-colors"
-                />
-                <button
-                  type="button"
-                  @click="addImageUrl"
-                  class="text-sm font-medium text-white bg-emerald-600 px-4 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors"
-                >
-                  Add URL
-                </button>
-              </div>
-            </div>
-
             <!-- File Upload -->
             <div>
               <label class="text-sm font-medium text-slate-700 mb-2 block"
-                >Or upload file</label
+                >Upload file</label
               >
               <label
                 class="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-5 text-center transition hover:border-emerald-300 hover:bg-emerald-50/50"
@@ -214,7 +192,7 @@
           <button
             type="button"
             class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            @click="router.push({ name: 'rooms' })"
+            @click="router.push({ name: 'hotel-management' })"
           >
             Cancel
           </button>
@@ -241,7 +219,6 @@ const saving = ref(false);
 const message = reactive({ type: "", text: "" });
 const imageFile = ref(null);
 const imagePreview = ref("");
-const imageUrlInput = ref("");
 
 const form = reactive({
   name: "",
@@ -269,32 +246,6 @@ function handleImageFile(event) {
   imageFile.value = file;
   imagePreview.value = file ? URL.createObjectURL(file) : "";
   event.target.value = "";
-}
-
-function addImageUrl() {
-  if (!imageUrlInput.value.trim()) {
-    message.type = "error";
-    message.text = "Please enter a valid URL";
-    return;
-  }
-
-  // Validate URL format
-  try {
-    new URL(imageUrlInput.value);
-  } catch {
-    message.type = "error";
-    message.text = "Please enter a valid URL";
-    return;
-  }
-
-  imageFile.value = null;
-  imagePreview.value = imageUrlInput.value;
-  imageUrlInput.value = "";
-  message.type = "success";
-  message.text = "Image URL added successfully";
-  setTimeout(() => {
-    message.text = "";
-  }, 2000);
 }
 
 function hotelPayload() {
@@ -326,9 +277,6 @@ function hotelPayload() {
   // Append image if selected
   if (imageFile.value) {
     data.append("image", imageFile.value);
-  } else if (imagePreview.value && !imagePreview.value.startsWith("blob:")) {
-    // If we have a URL image (not a blob), add it to the payload
-    data.append("image_url", imagePreview.value);
   }
 
   return data;
@@ -363,7 +311,7 @@ async function handleSubmit() {
 
     // Give API a moment to process image, then redirect
     setTimeout(() => {
-      router.push({ name: "rooms" });
+      router.push({ name: "hotel-management" });
     }, 500);
   } catch (err) {
     message.type = "error";

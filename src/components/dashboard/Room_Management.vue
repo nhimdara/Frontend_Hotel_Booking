@@ -639,7 +639,7 @@ const router = useRouter();
 const route = useRoute();
 const stats = ref({
   totalRooms: { value: 0, badge: "Loading" },
-  occupied: { value: 0, badge: "0% Occupancy" },
+  occupied: { value: 0, badge: "0 of 0 Occupied" },
   maintenance: { value: 0, badge: "Requires Attention" },
   available: { value: 0, badge: "Ready to Book" },
 });

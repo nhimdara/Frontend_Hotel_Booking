@@ -315,28 +315,6 @@
           </div>
 
           <div class="mt-5 sm:mt-6 space-y-4">
-            <!-- Import by link -->
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-2"
-                >Add image by link</label
-              >
-              <div class="flex gap-2">
-                <input
-                  v-model="form.mediaLink"
-                  type="url"
-                  placeholder="https://example.com/room-view.jpg"
-                  class="flex-1 min-w-0 text-sm text-slate-700 placeholder:text-slate-400 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-200/70 focus:border-emerald-300 transition-colors"
-                />
-                <button
-                  type="button"
-                  @click="importLink"
-                  class="text-sm font-medium text-white bg-emerald-800 px-4 sm:px-5 py-2.5 rounded-xl hover:bg-emerald-900 transition-colors shrink-0"
-                >
-                  Import
-                </button>
-              </div>
-            </div>
-
             <!-- File upload -->
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-2"
@@ -390,12 +368,6 @@
                   class="absolute top-1 left-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded"
                 >
                   File
-                </div>
-                <div
-                  v-else-if="!file.existing"
-                  class="absolute top-1 left-1 bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded"
-                >
-                  New URL
                 </div>
                 <div
                   v-else
@@ -532,7 +504,6 @@ const form = reactive({
   maxOccupancy: "",
   description: "",
   mediaFiles: [], // [{ id?, file, preview, existing }]
-  mediaLink: "",
 });
 
 function applyRoomToState(data) {
@@ -561,7 +532,6 @@ function applyRoomToState(data) {
     preview: m.url,
     existing: true,
   }));
-  form.mediaLink = "";
 }
 
 async function loadRoom() {
@@ -635,13 +605,6 @@ function removeFile(index) {
   const f = form.mediaFiles[index];
   if (f.file) URL.revokeObjectURL(f.preview);
   form.mediaFiles.splice(index, 1);
-}
-
-function importLink() {
-  const url = form.mediaLink.trim();
-  if (!url) return;
-  form.mediaFiles.push({ file: null, preview: url, existing: false });
-  form.mediaLink = "";
 }
 
 // Discards in-progress edits and restores the last-saved values.

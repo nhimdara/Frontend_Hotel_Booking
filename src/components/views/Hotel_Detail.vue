@@ -246,7 +246,28 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div
+            v-if="roomsLoading"
+            class="mt-4 rounded-2xl border border-gray-200 bg-white p-6 text-center text-sm font-medium text-gray-500"
+          >
+            Loading rooms from API...
+          </div>
+          <div
+            v-else-if="roomsError"
+            class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center text-sm font-medium text-rose-700"
+          >
+            {{ roomsError }}
+          </div>
+          <div
+            v-else-if="!rooms.length"
+            class="mt-4 rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500"
+          >
+            No rooms are available for this hotel yet.
+          </div>
+          <div
+            v-else
+            class="grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2 xl:grid-cols-3"
+          >
             <div
               v-for="room in rooms"
               :key="room.type || room.name"
@@ -498,12 +519,16 @@ import { computed, onMounted, ref, watch } from "vue";
 
 import { useRoute, useRouter } from "vue-router";
 import hotelApi, { fallbackImage } from "../../service/api/Hotel.js";
+import { ensureRoomsForHotel } from "../../service/api/rooms.js";
 
 const route = useRoute();
 const router = useRouter();
 const { hotels, loading, error, fetchHotel } = hotelApi.setup();
 
 const hotel = ref(null);
+const apiRooms = ref([]);
+const roomsLoading = ref(false);
+const roomsError = ref("");
 const DEFAULT_ROOM_TYPE = "standard";
 const selectedRoomType = ref(DEFAULT_ROOM_TYPE);
 
@@ -513,8 +538,34 @@ async function loadHotel() {
 
   try {
     hotel.value = await fetchHotel(hotelId);
+    await loadRoomsForHotel();
   } catch {
     hotel.value = null;
+  }
+}
+
+async function loadRoomsForHotel() {
+  if (!hotel.value?.id) return;
+
+  roomsError.value = "";
+  apiRooms.value = [];
+
+  if (hotel.value.rooms?.length) {
+    roomsLoading.value = false;
+    return;
+  }
+
+  roomsLoading.value = true;
+
+  try {
+    apiRooms.value = await ensureRoomsForHotel(hotel.value);
+  } catch (err) {
+    const message = err.message || "";
+    roomsError.value = message.includes("API token")
+      ? ""
+      : message || "Could not load or create rooms for this hotel.";
+  } finally {
+    roomsLoading.value = false;
   }
 }
 
@@ -643,51 +694,6 @@ const displayAmenities = computed(() => {
   }));
 });
 
-const fallbackRooms = [
-  {
-    type: "standard",
-    name: "Beachfront Sanctuary",
-    desc: "Private beach lagoon",
-    size: "90m²",
-    bed: "King Bed",
-    max: 3,
-    price: 580,
-    badge: "Best Value",
-    badgeColor: "bg-blue-500",
-    available: true,
-    image:
-      "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400&q=80",
-  },
-  {
-    type: "deluxe",
-    name: "Overwater Oasis",
-    desc: "Infinite horizon views",
-    size: "145m²",
-    bed: "King Bed",
-    max: 2,
-    price: 720,
-    badge: "Editor's Pick",
-    badgeColor: "bg-orange-500",
-    available: true,
-    image:
-      "https://images.unsplash.com/photo-1540541338287-41700207dee6?w=400&q=80",
-  },
-  {
-    type: "suite",
-    name: "Azure Grand Suite",
-    desc: "Private pool & butler service",
-    size: "330m²",
-    bed: "2x King",
-    max: 4,
-    price: 1450,
-    badge: "Ultra Luxury",
-    badgeColor: "bg-purple-600",
-    available: true,
-    image:
-      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&q=80",
-  },
-];
-
 function normalizeRoomType(value) {
   const roomType = String(value || "").toLowerCase();
   const validRoomTypes = ["standard", "deluxe", "suite", "presidential"];
@@ -700,32 +706,62 @@ function normalizeRoomType(value) {
 }
 
 const rooms = computed(() => {
-  if (!hotel.value?.rooms?.length) return fallbackRooms;
+  const sourceRooms = apiRooms.value.length ? apiRooms.value : hotel.value?.rooms || [];
 
-  return hotel.value.rooms
+  return sourceRooms
     .map((room) => {
-      const name = room.name || room.type || room.room_type || "Room";
-      const type = normalizeRoomType(room.room_type || room.type || name);
+      const raw = room.raw || room;
+      const name =
+        room.roomName ||
+        room.roomNumber ||
+        room.name ||
+        raw.name ||
+        raw.room_number ||
+        "Room";
+      const type = normalizeRoomType(
+        room.apiRoomType || raw.room_type || room.roomType || raw.type || name,
+      );
+      const mediaImage = room.media?.[0]?.url;
 
       return {
         type,
         name,
-        desc: room.description || room.desc || "Comfortable stay",
-        size: room.size || room.area || "N/A",
-        bed: room.bed || room.bed_type || "Bed",
-        max: room.max_guests || room.max_occupancy || room.max || room.capacity || 2,
+        desc: room.description || raw.description || room.desc || "Comfortable stay",
+        size: raw.size || raw.area || "N/A",
+        bed: raw.bed || raw.bed_type || (type === "deluxe" ? "King Bed" : "Bed"),
+        max:
+          room.maxOccupancy ||
+          raw.max_guests ||
+          raw.max_occupancy ||
+          room.max ||
+          raw.capacity ||
+          2,
         price: Number(
-          room.price ||
+          room.baseRate ||
+            raw.price ||
             room.price_per_night ||
-            room.base_rate ||
+            raw.price_per_night ||
+            raw.base_rate ||
             room.base_price ||
             hotel.value.price ||
             0,
         ),
-        badge: room.badge || null,
-        badgeColor: room.badgeColor || "bg-blue-500",
-        image: room.image || room.image_url || hotel.value.image,
-        available: room.available !== false && room.is_available !== false && room.active !== false && room.status !== "maintenance",
+        badge: raw.badge || room.badge || null,
+        badgeColor: raw.badgeColor || room.badgeColor || "bg-blue-500",
+        image:
+          room.image ||
+          mediaImage ||
+          raw.image ||
+          raw.image_url ||
+          raw.image_path ||
+          hotel.value.image ||
+          fallbackImage,
+        available:
+          room.status !== "Maintenance" &&
+          raw.available !== false &&
+          raw.is_available !== false &&
+          raw.active !== false &&
+          raw.status !== "maintenance",
       };
     })
     .filter((room) => room.type);

@@ -76,6 +76,7 @@
             :src="stay.image"
             :alt="stay.name"
             class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            @error="setImageFallback"
           />
 
           <span
@@ -176,7 +177,7 @@
 <script setup>
 import { useRouter } from "vue-router";
 import { computed, onMounted } from "vue";
-import hotelApi from "./../../service/api/Hotel.js";
+import hotelApi, { fallbackImage } from "./../../service/api/Hotel.js";
 
 const emit = defineEmits(["show-hotels"]);
 const router = useRouter();
@@ -200,6 +201,12 @@ function viewHotels() {
 
 function viewDetails(stay) {
   router.push(`/hotel/${stay.id}`);
+}
+
+function setImageFallback(event) {
+  if (event.target.src !== fallbackImage) {
+    event.target.src = fallbackImage;
+  }
 }
 </script>
 

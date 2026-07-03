@@ -37,7 +37,7 @@
           <span class="text-xs font-medium text-emerald-700 bg-emerald-50/70 px-2 py-0.5 rounded-full border border-emerald-200/50">{{ stats.occupancy.label }}</span>
         </div>
         <div class="mt-3 h-1.5 sm:h-2 rounded-full bg-slate-100/80 overflow-hidden">
-          <div class="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-400" :style="{ width: `${stats.occupancy.value}%` }"></div>
+          <div class="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-400" :style="{ width: `${occupancyWidth}%` }"></div>
         </div>
         <p class="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
           <span class="inline-block w-1 h-1 rounded-full bg-teal-300"></span>
@@ -375,7 +375,8 @@ const fallbackCandles = [{ label: "Live", open: 0, high: 1, low: 0, close: 1, bu
 const candles = ref(fallbackCandles);
 const firstName = computed(() => currentUser.value.name.split(" ")[0]);
 const todayLabel = computed(() => new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }));
-const occupancyRooms = computed(() => Math.round((roomAvailability.value.total * stats.value.occupancy.value) / 100));
+const occupancyWidth = computed(() => Math.max(0, Math.min(100, Number(stats.value.occupancy.value) || 0)));
+const occupancyRooms = computed(() => roomAvailability.value.occupied);
 const sparkline = computed(() => {
   const max = Math.max(...candles.value.map((item) => item.high), 1);
   return candles.value.slice(-10).map((c) => Math.max(12, Math.round((c.close / max) * 100)));

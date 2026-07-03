@@ -1,6 +1,7 @@
 import { adminApi, bookingApi } from "./client.js";
 import { clearApiToken, ensureApiToken, hasApiToken } from "../auth.js";
 import { guests as demoGuests } from "./Data_guest.js";
+import { fetchRooms } from "./rooms.js";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -11,6 +12,18 @@ const currency = new Intl.NumberFormat("en-US", {
 function numberValue(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function percentValue(value, fallback = 0) {
+  const parsed = numberValue(value, fallback);
+  const percent = parsed > 0 && parsed <= 1 ? parsed * 100 : parsed;
+  return Math.max(0, Math.min(100, Math.round(percent)));
+}
+
+function occupancyLabel(percent) {
+  if (percent >= 80) return "Optimal";
+  if (percent > 0) return "Active";
+  return "Low";
 }
 
 function money(value) {
@@ -43,6 +56,39 @@ function normalizeStatus(value, paymentValue = "") {
   if (status.includes("confirm")) return "Confirmed";
   if (["paid", "authorized", "completed"].some((item) => paymentStatus.includes(item))) return "Paid";
   return "Confirmed";
+}
+
+function isOccupyingBooking(booking) {
+  return ["Confirmed", "Paid", "Checked-in"].includes(booking.status);
+}
+
+function bookingRoomKey(booking) {
+  const raw = booking.raw || {};
+  return (
+    raw.room_id ||
+    raw.roomId ||
+    raw.room?.id ||
+    booking.bookingId ||
+    booking.id
+  );
+}
+
+function deriveOccupancy(bookings = [], roomData = null, existing = {}) {
+  const activeBookings = bookings.filter(isOccupyingBooking);
+  const occupiedKeys = new Set(activeBookings.map(bookingRoomKey).filter(Boolean));
+  const bookedRooms = occupiedKeys.size || activeBookings.length;
+  const rooms = roomData?.rooms || [];
+  const occupiedFromRooms = numberValue(roomData?.stats?.occupied?.value, 0);
+  const totalRooms = rooms.length || numberValue(existing.roomAvailability?.total, 0) || bookedRooms;
+  const occupiedRooms = Math.min(Math.max(occupiedFromRooms, bookedRooms), totalRooms || bookedRooms);
+  const occupancyPercent = totalRooms ? percentValue((occupiedRooms / totalRooms) * 100) : 0;
+
+  return {
+    percent: occupancyPercent,
+    total: totalRooms || 1,
+    occupied: occupiedRooms,
+    available: Math.max((totalRooms || 0) - occupiedRooms, 0),
+  };
 }
 
 export function normalizeBooking(raw = {}) {
@@ -78,6 +124,7 @@ export function normalizeBooking(raw = {}) {
     status: normalizeStatus(raw.status, raw.payment_status || raw.paymentStatus || payment.status),
     paymentStatus: String(payment.status || raw.payment_status || raw.paymentStatus || "unpaid"),
     rawStatus: raw.status || "",
+    raw,
   };
 }
 
@@ -99,7 +146,7 @@ export function normalizeOverview(raw = {}) {
     payload.room_availability ||
     {};
 
-  const occupancyPercent = numberValue(
+  const occupancyPercent = percentValue(
     occupancy.value ??
       occupancy.percent ??
       occupancy.rate ??
@@ -107,10 +154,17 @@ export function normalizeOverview(raw = {}) {
       overview.occupancy_rate ??
       overview.occupancy,
   );
-  const totalRooms = numberValue(rooms.total ?? overview.total_rooms, 0);
+  const totalRooms = numberValue(
+    rooms.total ?? rooms.total_rooms ?? overview.total_rooms,
+    0,
+  );
   const occupiedRooms = numberValue(
-    rooms.occupied ?? overview.occupied_rooms,
+    rooms.occupied ?? rooms.occupied_rooms ?? overview.occupied_rooms,
     Math.round((totalRooms * occupancyPercent) / 100),
+  );
+  const availableRooms = numberValue(
+    rooms.available ?? rooms.available_rooms ?? overview.available_rooms,
+    Math.max(totalRooms - occupiedRooms, 0),
   );
 
   return {
@@ -137,7 +191,7 @@ export function normalizeOverview(raw = {}) {
     roomAvailability: {
       total: totalRooms || Math.max(occupiedRooms, 1),
       occupied: occupiedRooms,
-      available: numberValue(rooms.available ?? overview.available_rooms),
+      available: availableRooms,
     },
   };
 }
@@ -175,25 +229,44 @@ export function normalizeRevenueSeries(raw = {}) {
 export async function fetchDashboardData({ hotelId, range = "current" } = {}) {
   await ensureApiToken();
 
-  const [overview, revenue, recentBookings] = await Promise.all([
+  const [overview, revenue, recentBookings, roomData] = await Promise.all([
     adminApi.overview(hotelId),
     adminApi.revenuePerformance(hotelId, range),
     adminApi.recentBookings(hotelId, 10),
+    fetchRooms(hotelId ? { hotel_id: hotelId } : {}).catch(() => null),
   ]);
+  const normalizedOverview = normalizeOverview(overview);
+  const bookings = toArray(
+    recentBookings.bookings ||
+    recentBookings.recent_bookings ||
+    recentBookings.recentBookings ||
+    recentBookings.data?.data ||
+    recentBookings.data?.bookings ||
+    recentBookings.data?.recent_bookings ||
+    recentBookings.data ||
+    recentBookings
+  ).map(normalizeBooking);
+  const shouldDeriveOccupancy = normalizedOverview.stats.occupancy.value === 0 && bookings.some(isOccupyingBooking);
+  const derivedOccupancy = shouldDeriveOccupancy
+    ? deriveOccupancy(bookings, roomData, normalizedOverview)
+    : null;
+
+  if (derivedOccupancy) {
+    normalizedOverview.stats.occupancy = {
+      value: derivedOccupancy.percent,
+      label: occupancyLabel(derivedOccupancy.percent),
+    };
+    normalizedOverview.roomAvailability = {
+      total: derivedOccupancy.total,
+      occupied: derivedOccupancy.occupied,
+      available: derivedOccupancy.available,
+    };
+  }
 
   return {
-    ...normalizeOverview(overview),
+    ...normalizedOverview,
     candles: normalizeRevenueSeries(revenue),
-    bookings: toArray(
-      recentBookings.bookings ||
-      recentBookings.recent_bookings ||
-      recentBookings.recentBookings ||
-      recentBookings.data?.data ||
-      recentBookings.data?.bookings ||
-      recentBookings.data?.recent_bookings ||
-      recentBookings.data ||
-      recentBookings
-    ).map(normalizeBooking),
+    bookings,
   };
 }
 
@@ -229,6 +302,11 @@ export async function fetchBookingsData({ hotelId } = {}) {
     [];
   const normalized = toArray(rows).map(normalizeBooking);
   const summaryPayload = summary?.data || summary || {};
+  const roomData = await fetchRooms(hotelId ? { hotel_id: hotelId } : {}).catch(() => null);
+  const summaryOccupancy = percentValue(summaryPayload.occupancy_rate ?? summaryPayload.occupancy ?? 0);
+  const derivedOccupancy = summaryOccupancy === 0 && normalized.some(isOccupyingBooking)
+    ? deriveOccupancy(normalized, roomData)
+    : null;
   const totalRevenue =
     summaryPayload.revenue?.total ??
     summaryPayload.revenue?.amount ??
@@ -245,7 +323,7 @@ export async function fetchBookingsData({ hotelId } = {}) {
           summaryPayload.pending_approval ??
           normalized.filter((booking) => booking.status === "Awaiting Approval").length,
       },
-      occupancyRate: { value: summaryPayload.occupancy_rate ?? summaryPayload.occupancy ?? 0 },
+      occupancyRate: { value: derivedOccupancy?.percent ?? summaryOccupancy },
       revenue: { value: money(totalRevenue), period: summaryPayload.period || "MTD" },
     },
     bookings: normalized,
