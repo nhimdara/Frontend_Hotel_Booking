@@ -18,8 +18,14 @@
         </p>
       </div>
       <div class="flex items-center gap-2.5">
-       
-       
+        <button
+          type="button"
+          class="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isLoading"
+          @click="loadBookings"
+        >
+          {{ isLoading ? "Refreshing..." : "Refresh" }}
+        </button>
       </div>
     </div>
 
@@ -60,9 +66,9 @@
       >
         <div class="flex items-center justify-between gap-2">
           <div class="min-w-0">
-            <p class="text-xs text-slate-500 font-medium truncate">Check-ins Today</p>
+            <p class="text-xs text-slate-500 font-medium truncate">Pending Review</p>
             <p class="text-xl sm:text-2xl font-bold text-slate-800 mt-2 tracking-tight">
-              {{ stats.checkInsToday.value }}
+              {{ stats.pendingApproval.value }}
             </p>
           </div>
           <div
@@ -152,6 +158,18 @@
     <div
       class="bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm mt-6 overflow-hidden"
     >
+      <div
+        v-if="notice.message"
+        :class="[
+          'mx-4 mt-4 rounded-xl border px-4 py-3 text-sm font-medium sm:mx-5',
+          notice.type === 'error'
+            ? 'border-rose-200 bg-rose-50 text-rose-700'
+            : 'border-teal-200 bg-teal-50 text-teal-700',
+        ]"
+      >
+        {{ notice.message }}
+      </div>
+
       <div
         class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-4 border-b border-slate-100/60"
       >
@@ -319,7 +337,28 @@
             </td>
 
             <td class="px-5 py-3.5">
-              <div class="flex items-center gap-1">
+              <div
+                v-if="booking.status === 'Awaiting Approval'"
+                class="flex items-center gap-2"
+              >
+                <button
+                  type="button"
+                  class="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  :disabled="updatingBookingId === booking.id"
+                  @click="updateBookingStatus(booking, 'confirmed')"
+                >
+                  {{ updatingBookingId === booking.id ? "Saving..." : "Approve" }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  :disabled="updatingBookingId === booking.id"
+                  @click="updateBookingStatus(booking, 'denied')"
+                >
+                  Deny
+                </button>
+              </div>
+              <div v-else class="flex items-center gap-1">
                 <button
                   v-if="booking.status !== 'Canceled'"
                   class="text-slate-400 hover:text-teal-600 hover:bg-teal-50/70 rounded-lg p-1.5 transition-all"
@@ -381,7 +420,7 @@
               colspan="6"
               class="px-5 py-10 text-center text-slate-400 text-sm"
             >
-              No bookings match your search.
+              {{ emptyStateText }}
             </td>
           </tr>
         </tbody>
@@ -443,6 +482,25 @@
                 </div>
 
                 <div class="flex items-center gap-1 -mr-1.5">
+                  <template v-if="booking.status === 'Awaiting Approval'">
+                    <button
+                      type="button"
+                      class="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      :disabled="updatingBookingId === booking.id"
+                      @click="updateBookingStatus(booking, 'confirmed')"
+                    >
+                      {{ updatingBookingId === booking.id ? "Saving..." : "Approve" }}
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      :disabled="updatingBookingId === booking.id"
+                      @click="updateBookingStatus(booking, 'denied')"
+                    >
+                      Deny
+                    </button>
+                  </template>
+                  <template v-else>
                   <button
                     v-if="booking.status !== 'Canceled'"
                     class="text-slate-400 hover:text-teal-600 hover:bg-teal-50/70 rounded-lg p-1.5 transition-all"
@@ -495,6 +553,7 @@
                       />
                     </svg>
                   </button>
+                  </template>
                 </div>
               </div>
             </div>
@@ -505,7 +564,7 @@
           v-if="paginatedBookings.length === 0"
           class="px-5 py-10 text-center text-slate-400 text-sm"
         >
-          No bookings match your search.
+          {{ emptyStateText }}
         </div>
       </div>
 
@@ -589,91 +648,105 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
-import {
-  stats,
-  bookings as rawBookings,
-  statusFilters,
-} from "../../service/api/Data_bookin.js";
-
-// --- Avatar initials ---
-const bookingsWithInitials = computed(() =>
-  rawBookings.map((booking) => ({
-    ...booking,
-    initials: booking.name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase(),
-  })),
-);
-
-// --- Search + status filter ---
+import { computed, onMounted, ref, watch } from "vue";
+import { fetchBookingsData } from "../../service/api/dashboard.js";
+import { bookingApi } from "../../service/api/client.js";
+const stats = ref({
+  totalBookings: { value: 0 },
+  checkInsToday: { value: 0 },
+  pendingApproval: { value: 0 },
+  occupancyRate: { value: 0 },
+  revenue: { value: "USD 0", period: "MTD" },
+});
+const rawBookings = ref([]);
+const isLoading = ref(false);
+const updatingBookingId = ref(null);
+const notice = ref({ type: "", message: "" });
+const statusFilters = ["All Status", "Awaiting Approval", "Paid", "Confirmed", "Checked-in", "Canceled", "Denied", "Pending"];
+async function loadBookings() {
+  isLoading.value = true;
+  notice.value = { type: "", message: "" };
+  try {
+    const data = await fetchBookingsData();
+    stats.value = data.stats;
+    rawBookings.value = data.bookings;
+  } catch (err) {
+    notice.value = {
+      type: "error",
+      message: err.message || "Could not load bookings. Please check the API connection.",
+    };
+  } finally {
+    isLoading.value = false;
+  }
+}
+async function updateBookingStatus(booking, status) {
+  updatingBookingId.value = booking.id;
+  notice.value = { type: "", message: "" };
+  try {
+    await bookingApi.update(booking.id, { status });
+    await loadBookings();
+    notice.value = {
+      type: "success",
+      message:
+        status === "confirmed"
+          ? `Booking ${booking.bookingId} approved. The guest can now check in.`
+          : `Booking ${booking.bookingId} denied. The guest status page has been updated.`,
+    };
+  } catch (err) {
+    notice.value = {
+      type: "error",
+      message: err.message || "Could not update this booking.",
+    };
+  } finally {
+    updatingBookingId.value = null;
+  }
+}
+const bookingsWithInitials = computed(() => rawBookings.value.map((booking) => ({
+  ...booking,
+  initials: booking.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+})));
 const searchQuery = ref("");
 const activeFilter = ref("All Status");
-
 const filteredBookings = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
-
   return bookingsWithInitials.value.filter((booking) => {
-    const matchesStatus =
-      activeFilter.value === "All Status" ||
-      booking.status === activeFilter.value;
-
-    const matchesSearch =
-      query === "" ||
-      booking.name.toLowerCase().includes(query) ||
-      booking.email.toLowerCase().includes(query) ||
-      booking.bookingId.toLowerCase().includes(query);
-
+    const matchesStatus = activeFilter.value === "All Status" || booking.status === activeFilter.value;
+    const matchesSearch = query === "" || booking.name.toLowerCase().includes(query) || booking.email.toLowerCase().includes(query) || String(booking.bookingId).toLowerCase().includes(query);
     return matchesStatus && matchesSearch;
   });
 });
-
-// --- Pagination (mirrors the overview dashboard's recent bookings table) ---
+const emptyStateText = computed(() => {
+  if (isLoading.value) return "Loading bookings...";
+  if (notice.value.type === "error") return "Bookings could not be loaded.";
+  return "No bookings match your search.";
+});
 const pageSize = 5;
 const currentPage = ref(1);
-
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredBookings.value.length / pageSize)),
-);
-
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredBookings.value.length / pageSize)));
 const paginatedBookings = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
   return filteredBookings.value.slice(start, start + pageSize);
 });
-
-const rangeStart = computed(() =>
-  filteredBookings.value.length === 0
-    ? 0
-    : (currentPage.value - 1) * pageSize + 1,
-);
-const rangeEnd = computed(() =>
-  Math.min(currentPage.value * pageSize, filteredBookings.value.length),
-);
-
+const rangeStart = computed(() => filteredBookings.value.length === 0 ? 0 : (currentPage.value - 1) * pageSize + 1);
+const rangeEnd = computed(() => Math.min(currentPage.value * pageSize, filteredBookings.value.length));
 function goToPage(page) {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
 }
-
-// Reset to page 1 whenever the search or filter changes, and clamp
-// currentPage if the filtered result set shrinks below it.
-watch([searchQuery, activeFilter], () => {
-  currentPage.value = 1;
-});
+watch([searchQuery, activeFilter], () => { currentPage.value = 1; });
 watch(totalPages, (newTotal) => {
-  if (currentPage.value > newTotal) {
-    currentPage.value = newTotal;
-  }
+  if (currentPage.value > newTotal) currentPage.value = newTotal;
 });
-
 const statusStyles = {
+  Paid: "bg-emerald-50/80 text-emerald-700 border border-emerald-200/50",
+  "Awaiting Approval": "bg-sky-50/80 text-sky-700 border border-sky-200/50",
   Confirmed: "bg-teal-50/80 text-teal-700 border border-teal-200/50",
   "Checked-in": "bg-amber-50/80 text-amber-700 border border-amber-200/50",
   Canceled: "bg-rose-50/80 text-rose-600 border border-rose-200/50",
+  Denied: "bg-rose-50/80 text-rose-600 border border-rose-200/50",
+  Pending: "bg-slate-50/80 text-slate-600 border border-slate-200/50",
 };
+onMounted(loadBookings);
 </script>
 
 <style>

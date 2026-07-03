@@ -58,7 +58,7 @@
             class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm sm:px-6 sm:py-5"
           >
             <p class="text-3xl font-bold text-slate-900">
-              {{ filteredProperties.length }}
+              {{ apiMatches }}
             </p>
             <p class="mt-1 text-sm text-slate-500">Matches</p>
           </div>
@@ -136,6 +136,22 @@
 
       <!-- Property Grid -->
       <div
+        v-if="loading"
+        class="mt-10 rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-500"
+      >
+        Loading hotels...
+      </div>
+      <div
+        v-else-if="error"
+        class="mt-10 rounded-2xl border border-rose-200 bg-rose-50 p-10 text-center"
+      >
+        <h3 class="text-lg font-semibold text-rose-700">
+          Could not load hotels
+        </h3>
+        <p class="mt-2 text-sm text-rose-500">{{ error }}</p>
+      </div>
+      <div
+        v-else
         class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       >
         <article
@@ -148,6 +164,7 @@
               :src="property.image"
               :alt="property.name"
               class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              @error="setImageFallback"
             />
             <span
               v-if="property.badge"
@@ -379,6 +396,7 @@
                 :src="property.image"
                 :alt="property.name"
                 class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                @error="setImageFallback"
               />
               <span
                 v-if="property.badge"
@@ -482,23 +500,29 @@
 </template>
 
 <script setup>
-import { useRouter } from "vue-router";
-import { ref, computed, watch } from "vue";
-import hotelApi from "../../service/api/Hotel.js";
-import Hotel_Detail from "./Hotel_Detail.vue";
+import { useRouter, useRoute } from "vue-router";
+import { ref, computed, onMounted, watch } from "vue";
+import hotelApi, { fallbackImage } from "../../service/api/Hotel.js";
 
 const router = useRouter();
+const route = useRoute();
 
 const ITEMS_PER_PAGE = 8;
 
-const { hotels: properties } = hotelApi.setup();
+const {
+  hotels: properties,
+  stats,
+  loading,
+  error,
+  fetchHotels,
+} = hotelApi.setup();
 
 const filters = [
   { label: "Top Rated", value: "top-rated" },
-  { label: "Under $300", value: "under-300" },
+  { label: "5 Stars", value: "five-star" },
+  { label: "4+ Rating", value: "review-4" },
+  { label: "Under $500", value: "under-500" },
   { label: "Luxury", value: "luxury" },
-  { label: "Boutique", value: "boutique" },
-  { label: "Eiffel View", value: "eiffel-view" },
 ];
 
 const currentPage = ref(1);
@@ -513,18 +537,16 @@ const recommended = computed(() =>
 const filteredProperties = computed(() => {
   const filtered = properties.value.filter((property) => {
     if (activeFilter.value === "all") return true;
-    if (activeFilter.value === "top-rated") return property.rating >= 4.8;
-    if (activeFilter.value === "under-300") return property.price < 300;
-    if (activeFilter.value === "luxury") return property.price >= 500;
-    if (activeFilter.value === "boutique") {
-      return property.name.toLowerCase().includes("boutique");
-    }
-    if (activeFilter.value === "eiffel-view") {
+    if (activeFilter.value === "top-rated") {
       return (
-        property.name.toLowerCase().includes("tower") ||
-        property.description.toLowerCase().includes("eiffel")
+        property.rating >= 4.8 ||
+        property.badge?.label?.toLowerCase().includes("top")
       );
     }
+    if (activeFilter.value === "five-star") return property.starRating >= 5;
+    if (activeFilter.value === "review-4") return property.reviewScore >= 4;
+    if (activeFilter.value === "under-500") return property.price < 500;
+    if (activeFilter.value === "luxury") return property.price >= 500;
     return true;
   });
 
@@ -535,6 +557,10 @@ const filteredProperties = computed(() => {
     return b.rating - a.rating || a.price - b.price;
   });
 });
+
+const apiMatches = computed(
+  () => stats.value?.matches ?? filteredProperties.value.length,
+);
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredProperties.value.length / ITEMS_PER_PAGE)),
@@ -548,6 +574,7 @@ const paginatedProperties = computed(() =>
 );
 
 const averagePrice = computed(() => {
+  if (stats.value?.avg_price) return Math.round(Number(stats.value.avg_price));
   if (!filteredProperties.value.length) return 0;
   const total = filteredProperties.value.reduce(
     (sum, property) => sum + property.price,
@@ -557,6 +584,7 @@ const averagePrice = computed(() => {
 });
 
 const averageRating = computed(() => {
+  if (stats.value?.avg_rating) return Number(stats.value.avg_rating).toFixed(1);
   if (!filteredProperties.value.length) return "0.0";
   const total = filteredProperties.value.reduce(
     (sum, property) => sum + property.rating,
@@ -611,14 +639,36 @@ function closeProperty() {
   selectedProperty.value = null;
 }
 
+function setImageFallback(event) {
+  if (event.target.src !== fallbackImage) {
+    event.target.src = fallbackImage;
+  }
+}
+
 watch(sortOption, () => {
   currentPage.value = 1;
+});
+
+// Refetch hotels when navigating to the hotels route
+let previousRouteName = null;
+watch(
+  () => route.name,
+  (currentRouteName) => {
+    if (currentRouteName === "hotels" && previousRouteName !== "hotels") {
+      fetchHotels({ per_page: 100 }).catch(() => {});
+    }
+    previousRouteName = currentRouteName;
+  },
+);
+
+onMounted(() => {
+  fetchHotels({ per_page: 100 }).catch(() => {});
 });
 </script>
 
 <style scoped>
 .line-clamp-1 {
-  display: -webkit-box;     
+  display: -webkit-box;
   -webkit-line-clamp: 1;
   line-clamp: 1;
   -webkit-box-orient: vertical;

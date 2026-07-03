@@ -6,6 +6,7 @@ import Home_Page from "../components/views/Home_Page.vue";
 import Hotel_Card from "../components/views/Hotel_Card.vue";
 import Hotel_Detail from "../components/views/Hotel_Detail.vue";
 import Confirm_Page from "../components/views/Confirm_Page.vue";
+import Process_Page from "../components/views/Process_Page.vue";
 import Login_Page from "../components/views/Login_Page.vue";
 import Register_Page from "../components/views/Register_Page.vue";
 import Contact_Page from "../components/views/Contact_Page.vue";
@@ -13,10 +14,13 @@ import Overview from "../components/dashboard/Overview.vue";
 import Booking from "../components/dashboard/Booking.vue";
 import Guests from "../components/dashboard/Guests.vue";
 import Room_Management from "../components/dashboard/Room_Management.vue";
+import Hotel_Management from "../components/dashboard/Hotel_Management.vue";
 import Add_Room from "../components/dashboard/Add_Room.vue";
+import Add_Hotel from "../components/dashboard/Add_Hotel.vue";
 import Update_Room from "../components/dashboard/Update_Room.vue";
+import Update_Hotel from "../components/dashboard/Update_Hotel.vue";
 import Setting from "../components/dashboard/Setting.vue";
-import { getCurrentUser, isAdminUser } from "../service/auth.js";
+import { getCurrentUser, hasApiToken, isAdminUser } from "../service/auth.js";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -44,6 +48,12 @@ const router = createRouter({
           path: "confirm",
           name: "confirm",
           component: Confirm_Page,
+          meta: { requiresAuth: true },
+        },
+        {
+          path: "process",
+          name: "process",
+          component: Process_Page,
           meta: { requiresAuth: true },
         },
         {
@@ -91,9 +101,25 @@ const router = createRouter({
           component: Room_Management,
         },
         {
+          path: "hotel-management",
+          name: "hotel-management",
+          component: Hotel_Management,
+        },
+        {
           path: "room-management/add",
           name: "room-add",
           component: Add_Room,
+        },
+        {
+          path: "hotels/add",
+          name: "hotel-add",
+          component: Add_Hotel,
+        },
+        {
+          path: "hotel-management/:id/edit",
+          name: "hotel-edit",
+          component: Update_Hotel,
+          props: (route) => ({ hotelId: route.params.id }),
         },
         {
           path: "room-management/:id/edit",
@@ -125,8 +151,18 @@ const router = createRouter({
       redirect: "/dashboard/room-management",
     },
     {
+      path: "/hotel-management",
+      redirect: "/dashboard/hotel-management",
+    },
+    {
       path: "/room-management/add",
       redirect: "/dashboard/room-management/add",
+    },
+    {
+      path: "/hotel-management/:id/edit",
+      redirect: (to) => ({
+        path: `/dashboard/hotel-management/${to.params.id}/edit`,
+      }),
     },
     {
       path: "/room-management/:id/edit",

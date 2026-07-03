@@ -1,221 +1,523 @@
 import { ref } from "vue";
+import { API_URL, apiFetch } from "./client.js";
+import { clearApiToken, ensureApiToken } from "../auth.js";
+
+export const fallbackImage = "";
+
+const hotels = ref([]);
+const stats = ref({
+  matches: 0,
+  avg_price: 0,
+  avg_rating: 0,
+});
+const loading = ref(false);
+const error = ref("");
+
+const apiOrigin = API_URL.replace(/\/api\/?$/, "");
+
+console.log("🔧 Hotel API Configuration:", {
+  API_URL,
+  apiOrigin,
+  env: import.meta.env.VITE_API_URL,
+});
+
+function parseList(value) {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (!value) return [];
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  if (typeof value === "object") return Object.values(value);
+  return [];
+}
+
+function uniqueList(items) {
+  return [...new Set(items.filter(Boolean))];
+}
+
+function imageUrlFromValue(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+
+  return (
+    value.url ||
+    value.path ||
+    value.image ||
+    value.image_url ||
+    value.image_path ||
+    value.featured_image ||
+    value.cover_image ||
+    ""
+  );
+}
+
+export function resolveAssetUrl(url) {
+  if (!url) return "";
+
+  const normalizedUrl = String(url).trim().replace(/\\/g, "/");
+  if (!normalizedUrl) return "";
+
+  // Already an absolute URL
+  if (/^https?:\/\//i.test(normalizedUrl)) {
+    console.log(`  resolveAssetUrl: ${normalizedUrl} -> absolute URL`);
+    return normalizedUrl;
+  }
+
+  const withoutLeadingSlash = normalizedUrl.replace(/^\/+/, "");
+  const publicStoragePath = withoutLeadingSlash
+    .replace(/^public\//, "storage/")
+    .replace(/^storage\/app\/public\//, "storage/");
+
+  // Path starting with /
+  if (normalizedUrl.startsWith("/")) {
+    const resolved = `${apiOrigin}${normalizedUrl}`;
+    console.log(
+      `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (apiOrigin: ${apiOrigin})`,
+    );
+    return resolved;
+  }
+
+  // Handle relative paths that might have storage/uploads folders
+  if (
+    publicStoragePath.includes("storage/") ||
+    publicStoragePath.includes("uploads/")
+  ) {
+    const resolved = `${apiOrigin}/${publicStoragePath}`
+      .replace(/\/\//g, "/")
+      .replace(/:\//, "://");
+    console.log(
+      `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (storage/uploads path)`,
+    );
+    return resolved;
+  }
+
+  const resolved = `${apiOrigin}/${publicStoragePath}`;
+  console.log(
+    `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (relative path)`,
+  );
+  return resolved;
+}
+
+function versionedAssetUrl(url, version) {
+  if (!url || !version || !url.startsWith(apiOrigin)) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${encodeURIComponent(version)}`;
+}
+
+function badgeStyle(label = "") {
+  const lower = label.toLowerCase();
+  if (lower.includes("top")) return "bg-amber-400 text-slate-900";
+  if (lower.includes("pool")) return "bg-teal-800 text-white";
+  if (lower.includes("new")) return "bg-emerald-500 text-white";
+  if (lower.includes("value")) return "bg-blue-500 text-white";
+  if (lower.includes("gem")) return "bg-purple-500 text-white";
+  return "bg-slate-800 text-white";
+}
+
+function firstImage(raw) {
+  const imageUrls = parseList(raw.image_urls);
+
+  // Check for various image field names that API might return
+  if (raw.image) {
+    const resolved = resolveAssetUrl(raw.image);
+    console.log("✓ Found image in image:", { raw: raw.image, resolved });
+    return resolved;
+  }
+  if (raw.image_url) {
+    const resolved = resolveAssetUrl(raw.image_url);
+    console.log("✓ Found image in image_url:", {
+      raw: raw.image_url,
+      resolved,
+    });
+    return resolved;
+  }
+  if (raw.image_path) {
+    const resolved = resolveAssetUrl(raw.image_path);
+    console.log("✓ Found image in image_path:", {
+      raw: raw.image_path,
+      resolved,
+    });
+    return resolved;
+  }
+  if (raw.featured_image) {
+    const resolved = resolveAssetUrl(raw.featured_image);
+    console.log("✓ Found image in featured_image:", {
+      raw: raw.featured_image,
+      resolved,
+    });
+    return resolved;
+  }
+  if (raw.cover_image) {
+    const resolved = resolveAssetUrl(raw.cover_image);
+    console.log("✓ Found image in cover_image:", {
+      raw: raw.cover_image,
+      resolved,
+    });
+    return resolved;
+  }
+
+  if (imageUrls.length) {
+    const resolved = resolveAssetUrl(imageUrls[0]);
+    console.log("✓ Found image in image_urls array:", {
+      raw: imageUrls[0],
+      resolved,
+    });
+    return resolved;
+  }
+  if (Array.isArray(raw.images) && raw.images.length) {
+    const image = raw.images[0];
+    const url = typeof image === "string" ? image : image.url || image.path;
+    const resolved = resolveAssetUrl(url);
+    console.log("✓ Found image in images array:", { raw: url, resolved });
+    return resolved;
+  }
+
+  console.log(
+    "✗ No image found, using fallback. Image-related fields:",
+    Object.keys(raw).filter((k) => k.includes("image")),
+  );
+  if (Object.keys(raw).length > 0) {
+    console.log("  All available fields in response:", Object.keys(raw));
+  }
+  return fallbackImage;
+}
+
+function imageCandidates(raw = {}) {
+  return uniqueList([
+    imageUrlFromValue(raw.image_url),
+    imageUrlFromValue(raw.image),
+    imageUrlFromValue(raw.image_path),
+    imageUrlFromValue(raw.featured_image),
+    imageUrlFromValue(raw.cover_image),
+    ...parseList(raw.image_urls).map(imageUrlFromValue),
+    ...parseList(raw.images).map(imageUrlFromValue),
+  ]);
+}
+
+function hotelImage(raw = {}) {
+  const candidates = imageCandidates(raw);
+  if (!candidates.length) return fallbackImage;
+
+  const resolved = resolveAssetUrl(candidates[0]);
+  return versionedAssetUrl(resolved, raw.updated_at || raw.updatedAt);
+}
+
+function normalizeBadge(raw) {
+  const badge =
+    raw.badge || raw.primary_badge || parseList(raw.badges)[0] || null;
+
+  if (!badge) return null;
+  if (typeof badge === "string") {
+    return { label: badge, style: badgeStyle(badge) };
+  }
+
+  const label = badge.label || badge.name || badge.title;
+  return label ? { label, style: badge.style || badgeStyle(label) } : null;
+}
+
+function parseRoomTypes(raw = {}) {
+  const sources = [
+    ...parseList(raw.room_types),
+    ...parseList(raw.rooms),
+    ...parseList(raw.active_room_types),
+  ];
+  const source = sources.length ? sources : null;
+
+  if (!source) return [];
+
+  if (Array.isArray(source)) return source;
+
+  if (typeof source === "string") {
+    return parseList(source);
+  }
+
+  if (typeof source === "object") {
+    return Object.entries(source)
+      .map(([key, value]) => {
+        if (value === false || value === null || value === undefined)
+          return null;
+        if (typeof value === "object") {
+          return {
+            ...value,
+            type: value.type || value.room_type || key,
+            name:
+              value.name ||
+              value.label ||
+              `${key.charAt(0).toUpperCase()}${key.slice(1)} Room`,
+          };
+        }
+        return key;
+      })
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+export function normalizeHotel(raw = {}) {
+  const price = Number(raw.price ?? raw.price_per_night ?? 0);
+  const rating = Number(raw.rating ?? raw.review_score ?? raw.star_rating ?? 0);
+  const locationParts = [raw.location, raw.country].filter(Boolean);
+  const amenities = parseList(raw.amenities);
+  const imageUrls = imageCandidates(raw)
+    .map(resolveAssetUrl)
+    .map((url) => versionedAssetUrl(url, raw.updated_at || raw.updatedAt))
+    .filter(Boolean);
+  const rooms = parseRoomTypes(raw).map((room) => {
+    if (typeof room === "string") {
+      return {
+        type: room.toLowerCase(),
+        name: `${room.charAt(0).toUpperCase()}${room.slice(1)} Room`,
+      };
+    }
+
+    const roomType = room.type || room.room_type || room.category || "standard";
+    const roomImages = [
+      imageUrlFromValue(room.image_url),
+      imageUrlFromValue(room.image),
+      imageUrlFromValue(room.image_path),
+      imageUrlFromValue(room.featured_image),
+      imageUrlFromValue(room.cover_image),
+      ...parseList(room.image_urls).map(imageUrlFromValue),
+      ...parseList(room.images).map(imageUrlFromValue),
+      ...parseList(room.media).map(imageUrlFromValue),
+      ...parseList(room.photos).map(imageUrlFromValue),
+    ].filter(Boolean);
+
+    return {
+      ...room,
+      type: roomType,
+      name:
+        room.name || room.roomName || room.room_number || `${roomType} Room`,
+      price: Number(
+        room.price ?? room.price_per_night ?? room.base_rate ?? price,
+      ),
+      max_guests: Number(
+        room.max_guests ?? room.max_occupancy ?? room.capacity ?? 2,
+      ),
+      image: roomImages.length ? resolveAssetUrl(roomImages[0]) : "",
+      available: room.available ?? room.status !== "maintenance",
+    };
+  });
+
+  const finalImage = hotelImage(raw);
+  console.log("Hotel normalized:", {
+    name: raw.name,
+    apiOrigin,
+    rawImageFields: {
+      image_url: raw.image_url,
+      image: raw.image,
+      image_path: raw.image_path,
+      featured_image: raw.featured_image,
+      cover_image: raw.cover_image,
+      image_urls: raw.image_urls,
+    },
+    finalImage,
+    allRawKeys: Object.keys(raw),
+  });
+
+  return {
+    ...raw,
+    id: Number(raw.id),
+    slug: raw.slug,
+    name: raw.name || "Untitled Hotel",
+    rating,
+    reviewScore: Number(raw.review_score ?? raw.rating ?? 0),
+    starRating: Number(raw.star_rating ?? 0),
+    location: locationParts.join(", ") || "Location unavailable",
+    country: raw.country || "",
+    latitude: raw.latitude,
+    longitude: raw.longitude,
+    description: raw.description || "No description available yet.",
+    price,
+    pricePerNight: price,
+    badge: normalizeBadge(raw),
+    badges: parseList(raw.badges),
+    wishlisted: Boolean(raw.wishlisted),
+    image: finalImage,
+    images: imageUrls.length ? imageUrls : [finalImage],
+    amenities,
+    rooms,
+    bookingsCount: Number(raw.bookings_count ?? raw.bookingsCount ?? 0),
+  };
+}
+
+function saveHotelToStore(hotel) {
+  if (!hotel?.id) return hotel;
+
+  const existingIndex = hotels.value.findIndex(
+    (item) => String(item.id) === String(hotel.id),
+  );
+
+  if (existingIndex >= 0) {
+    hotels.value.splice(existingIndex, 1, hotel);
+  } else {
+    hotels.value.unshift(hotel);
+  }
+
+  return hotel;
+}
+
+function queryString(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      search.set(key, value);
+    }
+  });
+  const query = search.toString();
+  return query ? `?${query}` : "";
+}
+
+async function fetchHotels(params = {}) {
+  loading.value = true;
+  error.value = "";
+
+  try {
+    const data = await apiFetch(`/hotels${queryString(params)}`, {
+      headers: { Accept: "application/json" },
+    });
+    const hotelList =
+      data?.hotels?.data ||
+      data?.data?.data ||
+      (Array.isArray(data?.hotels) ? data.hotels : null) ||
+      (Array.isArray(data?.data) ? data.data : null) ||
+      (Array.isArray(data) ? data : []);
+
+    hotels.value = hotelList.map(normalizeHotel);
+    stats.value = data?.stats || {
+      matches: hotels.value.length,
+      avg_price: 0,
+      avg_rating: 0,
+    };
+
+    return hotels.value;
+  } catch (err) {
+    error.value = err.message || "Could not load hotels.";
+    throw err;
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function fetchHotel(id) {
+  loading.value = true;
+  error.value = "";
+
+  try {
+    const data = await apiFetch(`/hotels/${id}`, {
+      headers: { Accept: "application/json" },
+    });
+    const rawHotel = data?.hotel || data?.data || data;
+    const hotel = normalizeHotel(rawHotel);
+    return saveHotelToStore(hotel);
+  } catch (err) {
+    error.value = err.message || "Could not load hotel.";
+    throw err;
+  } finally {
+    loading.value = false;
+  }
+}
+
+export const hotelApi = {
+  list: fetchHotels,
+  show: fetchHotel,
+  async create(payload) {
+    await ensureApiToken();
+    const options =
+      payload instanceof FormData
+        ? { method: "POST", body: payload }
+        : { method: "POST", body: JSON.stringify(payload) };
+    try {
+      const response = await apiFetch("/hotels", options);
+      console.log("Raw API response from hotel creation:", response);
+      console.log("Response keys:", response ? Object.keys(response) : "null");
+
+      // Handle different API response formats
+      const hotelData = response?.data || response?.hotel || response;
+      console.log("Extracted hotel data:", hotelData);
+      console.log("Hotel data image fields:", {
+        image: hotelData?.image,
+        image_url: hotelData?.image_url,
+        image_path: hotelData?.image_path,
+      });
+
+      // Normalize to trigger image extraction logging
+      console.log("📍 Now normalizing hotel data to extract image...");
+      const normalized = normalizeHotel(hotelData);
+      console.log("✅ Normalized hotel with image:", normalized.image);
+
+      return saveHotelToStore(normalized);
+    } catch (err) {
+      if (err.status !== 401) throw err;
+      clearApiToken();
+      await ensureApiToken({ refresh: true });
+      const response = await apiFetch("/hotels", options);
+      console.log("Retry response from hotel creation:", response);
+      const hotelData = response?.data || response?.hotel || response;
+      console.log("📍 Now normalizing hotel data from retry...");
+      const normalized = normalizeHotel(hotelData);
+      return saveHotelToStore(normalized);
+    }
+  },
+  async update(id, payload) {
+    await ensureApiToken();
+
+    const isFormData = payload instanceof FormData;
+    if (isFormData && !payload.has("_method")) {
+      payload.append("_method", "PUT");
+    }
+
+    const options = {
+      method: isFormData ? "POST" : "PUT",
+      body: isFormData ? payload : JSON.stringify(payload),
+    };
+
+    try {
+      const response = await apiFetch(`/hotels/${id}`, options);
+      return saveHotelToStore(
+        normalizeHotel(response?.data || response?.hotel || response),
+      );
+    } catch (err) {
+      if (err.status !== 401) throw err;
+      clearApiToken();
+      await ensureApiToken({ refresh: true });
+      const response = await apiFetch(`/hotels/${id}`, options);
+      return saveHotelToStore(
+        normalizeHotel(response?.data || response?.hotel || response),
+      );
+    }
+  },
+  remove(id) {
+    return apiFetch(`/hotels/${id}`, { method: "DELETE" }).then((response) => {
+      hotels.value = hotels.value.filter(
+        (hotel) => String(hotel.id) !== String(id),
+      );
+      return response;
+    });
+  },
+};
 
 export default {
   setup() {
-    // Wrapped the array correctly in a Vue 3 reactive ref
-    const hotels = ref([
-      {
-        id: 1,
-        name: "The Azure Boutique",
-        rating: 4.9,
-        location: "1st Arrondissement, Paris",
-        description:
-          "Experience ultimate Parisian luxury with breathtaking views of the Eiffel Tower and premium amenities.",
-        price: 450,
-        badge: { label: "Top Rated", style: "bg-amber-400 text-slate-900" },
-        wishlisted: true,
-        image:
-          "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=500&q=80",
-      },
-      {
-        id: 2,
-        name: "Le Marais Maison",
-        rating: 4.7,
-        location: "Le Marais, Paris",
-        description:
-          "Charming boutique stay tucked away in a historic district with cobblestone streets and artisan cafés.",
-        price: 310,
-        badge: null,
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1615460549969-36fa19521a4f?w=500&q=80",
-      },
-      {
-        id: 3,
-        name: "L'Étoile Grand Resort",
-        rating: 4.8,
-        location: "Champs-Élysées, Paris",
-        description:
-          "Unrivalled elegance near the Arc de Triomphe. Features an indoor pool, spa, and rooftop bar.",
-        price: 590,
-        badge: { label: "Pool Access", style: "bg-teal-800 text-white" },
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&q=80",
-      },
-      {
-        id: 4,
-        name: "Canal Saint-Martin Loft",
-        rating: 4.6,
-        location: "10th Arrondissement, Paris",
-        description:
-          "Live like a local in this sun-drenched industrial loft overlooking the iconic canal.",
-        price: 275,
-        badge: null,
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1596436889106-be35e843f974?w=500&q=80",
-      },
-      {
-        id: 5,
-        name: "Seine View Residence",
-        rating: 4.9,
-        location: "Quai d'Orsay, Paris",
-        description:
-          "Wake up to the sounds of the Seine. A rare riverside gem with private terrace and butler service.",
-        price: 520,
-        badge: null,
-        wishlisted: true,
-        image:
-          "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&q=80",
-      },
-      {
-        id: 6,
-        name: "Montmartre Heights",
-        rating: 4.5,
-        location: "Montmartre, Paris",
-        description:
-          "Perched high on the hill of Montmartre, offering the best sunset views over the Paris skyline.",
-        price: 385,
-        badge: null,
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=500&q=80",
-      },
-      {
-        id: 7,
-        name: "Palais Royal Suites",
-        rating: 4.8,
-        location: "1st Arrondissement, Paris",
-        description:
-          "Steps from the Louvre, this palatial hotel blends 18th-century charm with modern luxury.",
-        price: 680,
-        badge: { label: "New", style: "bg-emerald-500 text-white" },
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&q=80",
-      },
-      {
-        id: 8,
-        name: "Saint-Germain Studio",
-        rating: 4.6,
-        location: "6th Arrondissement, Paris",
-        description:
-          "Bohemian chic meets Parisian elegance in this beautifully styled studio near the Luxembourg Gardens.",
-        price: 340,
-        badge: null,
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=500&q=80",
-      },
-      {
-        id: 9,
-        name: "Bastille Urban Hotel",
-        rating: 4.4,
-        location: "11th Arrondissement, Paris",
-        description:
-          "A vibrant, design-led hotel in the heart of the trendy Bastille neighbourhood.",
-        price: 220,
-        badge: { label: "Best Value", style: "bg-blue-500 text-white" },
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=500&q=80",
-      },
-      {
-        id: 10,
-        name: "Opéra Prestige",
-        rating: 4.7,
-        location: "9th Arrondissement, Paris",
-        description:
-          "Grand Belle Époque interiors and a rooftop terrace overlooking the iconic Opéra Garnier.",
-        price: 475,
-        badge: null,
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=500&q=80",
-      },
-      {
-        id: 11,
-        name: "Trocadéro Tower View",
-        rating: 4.9,
-        location: "16th Arrondissement, Paris",
-        description:
-          "Iconic Eiffel Tower views from every room. The most photographed hotel balcony in all of Paris.",
-        price: 720,
-        badge: { label: "Top Rated", style: "bg-amber-400 text-slate-900" },
-        wishlisted: true,
-        image:
-          "https://images.unsplash.com/photo-1455587734955-081b22074882?w=500&q=80",
-      },
-      {
-        id: 12,
-        name: "Pigalle Boutique Inn",
-        rating: 4.3,
-        location: "18th Arrondissement, Paris",
-        description:
-          "Artsy and eclectic, this boutique inn sits in the creative heart of Pigalle.",
-        price: 195,
-        badge: null,
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1444201983204-c43cbd584d93?w=500&q=80",
-      },
-      {
-        id: 13,
-        name: "Invalides Heritage House",
-        rating: 4.6,
-        location: "7th Arrondissement, Paris",
-        description:
-          "A refined retreat steps from the golden dome of Les Invalides, perfect for history lovers.",
-        price: 430,
-        badge: null,
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=500&q=80",
-      },
-      {
-        id: 14,
-        name: "République Modern Stay",
-        rating: 4.5,
-        location: "3rd Arrondissement, Paris",
-        description:
-          "A sleek, contemporary hotel for the design-conscious traveller seeking a central Paris base.",
-        price: 295,
-        badge: null,
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1586611292717-f828b167408c?w=500&q=80",
-      },
-      {
-        id: 15,
-        name: "Île Saint-Louis Retreat",
-        rating: 4.8,
-        location: "4th Arrondissement, Paris",
-        description:
-          "A hidden gem on the tranquil Île Saint-Louis, surrounded by the Seine on all sides.",
-        price: 560,
-        badge: { label: "Hidden Gem", style: "bg-purple-500 text-white" },
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1631049552057-403cdb8f0658?w=500&q=80",
-      },
-      {
-        id: 16,
-        name: "Bois de Boulogne Lodge",
-        rating: 4.4,
-        location: "16th Arrondissement, Paris",
-        description:
-          "A peaceful forest-adjacent retreat for those who want nature and city in perfect balance.",
-        price: 265,
-        badge: null,
-        wishlisted: false,
-        image:
-          "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=500&q=80",
-      },
-    ]);
-
     return {
       hotels,
+      stats,
+      loading,
+      error,
+      fetchHotels,
+      fetchHotel,
     };
   },
 };
