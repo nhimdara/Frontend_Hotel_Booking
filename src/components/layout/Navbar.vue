@@ -130,9 +130,16 @@
             @click="isAccountOpen = !isAccountOpen"
           >
             <span
-              class="relative h-9 w-9 overflow-hidden rounded-full ring-2 ring-teal-500/30"
+              class="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-700 text-xs font-semibold text-white ring-2 ring-teal-500/30"
             >
-              <img :src="user.avatar" :alt="user.fullName" class="h-full w-full object-cover" />
+              <img
+                v-if="showAvatarImage"
+                :src="user.avatar"
+                :alt="user.fullName"
+                class="h-full w-full object-cover"
+                @error="avatarFailed = true"
+              />
+              <span v-else aria-hidden="true">{{ userInitials }}</span>
               <span
                 class="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500"
               ></span>
@@ -250,7 +257,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "../../service/auth.js";
 
@@ -261,6 +268,26 @@ const isAuthenticated = auth.isAuthenticated;
 const isAdmin = auth.isAdmin;
 const isAccountOpen = ref(false);
 const isMobileOpen = ref(false);
+const avatarFailed = ref(false);
+
+const userInitials = computed(() => {
+  const name = user.value?.fullName || user.value?.name || user.value?.email || "Guest";
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+});
+
+const showAvatarImage = computed(() => Boolean(user.value?.avatar) && !avatarFailed.value);
+
+watch(
+  () => user.value?.avatar,
+  () => {
+    avatarFailed.value = false;
+  },
+);
 
 function handleLogout() {
   auth.logout();

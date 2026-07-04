@@ -61,11 +61,17 @@ function loadSession() {
 function normalizeApiUser(user = {}) {
   const email = user.email || "";
   const role = user.role || user.type || user.account_type;
+  const fullName = user.fullName || user.name || "";
 
   return {
     ...user,
-    fullName: user.fullName || user.name || "",
+    fullName,
     role: role || (email.toLowerCase() === seededUsers[0].email ? "admin" : "user"),
+    avatar:
+      user.avatar ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        fullName || email || "Guest",
+      )}&background=0f766e&color=fff`,
   };
 }
 
