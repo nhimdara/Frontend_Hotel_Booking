@@ -2,7 +2,7 @@ import { ref } from "vue";
 import { API_URL, apiFetch } from "./client.js";
 import { clearApiToken, ensureApiToken } from "../auth.js";
 
-export const fallbackImage = "";
+export const fallbackImage = "/hotel-placeholder.svg";
 
 const hotels = ref([]);
 const stats = ref({
@@ -432,6 +432,11 @@ async function fetchHotel(id) {
 
 export const hotelApi = {
   list: fetchHotels,
+  async adminList() {
+    await ensureApiToken();
+    const response = await apiFetch("/admin/hotels");
+    return parseList(response?.hotels || response?.data || response).map(normalizeHotel);
+  },
   show: fetchHotel,
   async create(payload) {
     await ensureApiToken();

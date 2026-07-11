@@ -263,6 +263,7 @@ const navItems = [
   { name: "Guests", to: "/guests", icon: GuestsIcon },
   { name: "Hotel Management", to: "/hotel-management", icon: HotelManagementIcon },
   { name: "Room Management", to: "/room-management", icon: RoomManagementIcon },
+  { name: "Administrators", to: "/dashboard/administrators", icon: GuestsIcon },
   { name: "Settings", to: "/settings", icon: SettingsIcon },
 ];
 </script>

@@ -24,6 +24,7 @@
           />
         </div>
         <button
+          v-if="isSuperAdmin"
           type="button"
           @click="goToAddHotel"
           class="flex items-center justify-center gap-1.5 text-sm font-medium text-white bg-emerald-700 px-4 py-2.5 sm:py-3 rounded-xl shadow-sm hover:bg-emerald-800 transition-colors whitespace-nowrap"
@@ -212,8 +213,10 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { fallbackImage, hotelApi } from "../../service/api/Hotel.js";
+import { useAuth } from "../../service/auth.js";
 
 const router = useRouter();
+const isSuperAdmin = useAuth().isSuperAdmin;
 const rawHotels = ref([]);
 const loading = ref(false);
 const deleting = ref(null);
@@ -226,7 +229,7 @@ async function loadHotels() {
   loading.value = true;
   deleteError.value = "";
   try {
-    rawHotels.value = await hotelApi.list({ per_page: 1000 });
+    rawHotels.value = await hotelApi.adminList();
   } catch (err) {
     deleteError.value = err.message || "Failed to load hotels.";
   } finally {

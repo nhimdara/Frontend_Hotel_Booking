@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+:root { color: #172020; background: #f7f8f6; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; background: #f7f8f6; }
+button, input, select, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+::selection { background: #bde4de; color: #073f3d; }
+:focus-visible { outline: 3px solid rgba(13, 148, 136, .35); outline-offset: 3px; }
+.font-display { font-family: "Fraunces", ui-serif, Georgia, serif; }

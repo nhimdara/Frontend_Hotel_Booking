@@ -11,7 +11,7 @@ const seededUsers = [
     fullName: "Alex Rivera",
     email: "admin@stayeasy.com",
     password: "password",
-    role: "admin",
+    role: "super_admin",
     title: "General Manager",
     avatar: "https://i.pravatar.cc/80?img=12",
   },
@@ -66,7 +66,7 @@ function normalizeApiUser(user = {}) {
   return {
     ...user,
     fullName,
-    role: role || (email.toLowerCase() === seededUsers[0].email ? "admin" : "user"),
+    role: role || (email.toLowerCase() === seededUsers[0].email ? "super_admin" : "user"),
     avatar:
       user.avatar ||
       `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -203,8 +203,8 @@ async function register(payload) {
     fullName: payload.fullName.trim(),
     email,
     password: payload.password,
-    role: payload.role === "admin" ? "admin" : "user",
-    title: payload.role === "admin" ? "Hotel Administrator" : "StayEasy Member",
+    role: "user",
+    title: "StayEasy Member",
     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
       payload.fullName.trim(),
     )}&background=0f766e&color=fff`,
@@ -256,7 +256,8 @@ export function useAuth() {
   return {
     user: computed(() => state.user),
     isAuthenticated: computed(() => Boolean(state.user)),
-    isAdmin: computed(() => state.user?.role === "admin"),
+    isAdmin: computed(() => ["admin", "super_admin"].includes(state.user?.role)),
+    isSuperAdmin: computed(() => state.user?.role === "super_admin"),
     login,
     register,
     updateProfile,
@@ -269,5 +270,5 @@ export function getCurrentUser() {
 }
 
 export function isAdminUser() {
-  return state.user?.role === "admin";
+  return ["admin", "super_admin"].includes(state.user?.role);
 }

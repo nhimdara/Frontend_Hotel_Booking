@@ -124,6 +124,74 @@
           </p>
         </aside>
       </div>
+
+      <section v-if="booking && bookingStatus === 'confirmed'" id="booking-receipt" class="receipt mt-6 overflow-hidden rounded-2xl border border-[#d8e5e4] bg-white shadow-sm">
+        <div class="flex flex-col gap-5 border-b border-[#e5eeee] bg-[#0d5c5c] px-6 py-6 text-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <div class="flex items-center gap-4">
+            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20">
+              <svg viewBox="0 0 32 32" class="h-7 w-7" fill="none" aria-hidden="true"><path d="M7 24V8h5v6h8V8h5v16h-5v-6h-8v6H7Z" fill="currentColor"/><path d="M4 26h24" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".65"/></svg>
+            </div>
+            <div>
+              <p class="font-serif text-2xl">StayEasy</p>
+              <p class="text-xs text-white/65">Booking receipt</p>
+            </div>
+          </div>
+          <div class="text-left sm:text-right">
+            <p class="text-xs font-semibold uppercase tracking-widest text-white/60">Receipt number</p>
+            <p class="mt-1 font-mono text-sm font-bold">{{ receiptNumber }}</p>
+          </div>
+        </div>
+
+        <div class="p-6 sm:p-8">
+          <div class="grid gap-7 border-b border-[#e5eeee] pb-7 sm:grid-cols-2">
+            <div>
+              <p class="receipt-label">Issued to</p>
+              <p class="mt-2 font-semibold text-[#111c1c]">{{ booking.guest_name || booking.user?.name || "Guest" }}</p>
+              <p class="mt-1 text-sm text-[#6c7c7c]">{{ booking.guest_email || booking.user?.email || "Email not provided" }}</p>
+              <p v-if="booking.guest_phone" class="mt-1 text-sm text-[#6c7c7c]">{{ booking.guest_phone }}</p>
+            </div>
+            <div class="sm:text-right">
+              <p class="receipt-label">Reservation</p>
+              <p class="mt-2 font-semibold text-[#111c1c]">{{ booking.booking_reference || `#${booking.id}` }}</p>
+              <p class="mt-1 text-sm capitalize text-[#6c7c7c]">Status: {{ statusDisplay }}</p>
+              <p class="mt-1 text-sm text-[#6c7c7c]">Issued {{ formatDateTime(booking.payment?.authorized_at || booking.updated_at || booking.created_at) }}</p>
+            </div>
+          </div>
+
+          <div class="grid gap-6 py-7 sm:grid-cols-4">
+            <div class="sm:col-span-2">
+              <p class="receipt-label">Property</p>
+              <p class="mt-2 font-semibold">{{ booking.hotel?.name || "Hotel booking" }}</p>
+              <p class="mt-1 text-sm text-[#6c7c7c]">{{ booking.hotel?.location || booking.hotel?.address || "Booked through StayEasy" }}</p>
+            </div>
+            <div><p class="receipt-label">Check-in</p><p class="mt-2 text-sm font-semibold">{{ formatDate(booking.check_in) }}</p></div>
+            <div><p class="receipt-label">Check-out</p><p class="mt-2 text-sm font-semibold">{{ formatDate(booking.check_out) }}</p></div>
+          </div>
+
+          <div class="overflow-hidden rounded-xl border border-[#e2ebeb]">
+            <div class="grid grid-cols-[1fr_auto] gap-4 bg-[#f5f9f9] px-4 py-3 text-xs font-bold uppercase tracking-wider text-[#6c7c7c]">
+              <span>Booking details</span><span>Amount</span>
+            </div>
+            <div class="grid grid-cols-[1fr_auto] gap-4 px-4 py-5">
+              <div>
+                <p class="font-semibold">{{ booking.room_type || "Hotel accommodation" }}</p>
+                <p class="mt-1 text-sm text-[#6c7c7c]">{{ booking.nights || calculateNights(booking.check_in, booking.check_out) }} night(s) · {{ booking.guests || 1 }} guest(s)</p>
+              </div>
+              <p class="font-semibold">{{ formatMoney(booking.total_price) }}</p>
+            </div>
+          </div>
+
+          <div class="ml-auto mt-6 max-w-sm space-y-3">
+            <div class="flex justify-between text-sm text-[#6c7c7c]"><span>Payment method</span><span class="capitalize">{{ paymentMethod }}</span></div>
+            <div class="flex justify-between border-t border-[#e5eeee] pt-4 text-lg font-bold"><span>Total paid</span><span class="text-[#0d5c5c]">{{ formatMoney(booking.payment?.amount || booking.total_price) }}</span></div>
+          </div>
+
+          <div class="receipt-actions mt-8 flex flex-col gap-4 rounded-xl bg-[#f5f9f9] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-xs leading-5 text-[#6c7c7c]">Keep this receipt and your booking reference for check-in. Need help? Contact hello@stayeasy.com.</p>
+            <button type="button" class="shrink-0 rounded-xl bg-[#0d5c5c] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0a4a4a]" @click="printReceipt">Print / Save PDF</button>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -143,6 +211,9 @@ let pollInterval = null;
 
 const bookingId = computed(() => Number(route.query.bookingId || route.params.id));
 const bookingStatus = computed(() => String(booking.value?.status || "awaiting_approval"));
+const receiptNumber = computed(() => `RCP-${booking.value?.booking_reference || booking.value?.id || "PENDING"}`);
+const statusDisplay = computed(() => bookingStatus.value.replaceAll("_", " "));
+const paymentMethod = computed(() => String(booking.value?.payment?.method || "QR payment").replaceAll("_", " "));
 const pageTitle = computed(() => {
   if (bookingStatus.value === "confirmed") return "Booking confirmed";
   if (bookingStatus.value === "denied") return "Request not approved";
@@ -173,6 +244,26 @@ const steps = computed(() => [
 function formatDate(value) {
   if (!value) return "-";
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatDateTime(value) {
+  if (!value) return new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
+}
+
+function calculateNights(checkIn, checkOut) {
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  const nights = Math.ceil((end - start) / 86400000);
+  return Number.isFinite(nights) && nights > 0 ? nights : 1;
+}
+
+function printReceipt() {
+  window.print();
 }
 
 const lastCheckedLabel = computed(() => {
@@ -211,5 +302,14 @@ onUnmounted(() => {
 <style scoped>
 .font-serif {
   font-family: "DM Serif Display", Georgia, serif;
+}
+.receipt-label { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #829595; }
+
+@media print {
+  :global(body *) { visibility: hidden !important; }
+  .receipt, .receipt * { visibility: visible !important; }
+  .receipt { position: absolute; inset: 0; width: 100%; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+  .receipt-actions { display: none !important; }
+  @page { size: A4; margin: 12mm; }
 }
 </style>

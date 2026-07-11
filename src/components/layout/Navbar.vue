@@ -10,10 +10,8 @@
         to="/"
         class="flex items-center gap-3 transition hover:opacity-90"
       >
-        <div
-          class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-600 to-emerald-500 text-xl font-bold text-white shadow-lg"
-        >
-          🏨
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-800 text-white shadow-lg shadow-teal-900/15">
+          <svg viewBox="0 0 32 32" class="h-7 w-7" fill="none" aria-hidden="true"><path d="M7 24V8h5v6h8V8h5v16h-5v-6h-8v6H7Z" fill="currentColor"/><path d="M4 26h24" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".6"/></svg>
         </div>
 
         <div>
@@ -184,6 +182,8 @@
 
         <!-- Mobile Menu -->
         <button
+          :aria-expanded="isMobileOpen"
+          aria-label="Toggle navigation"
           class="rounded-lg p-2 transition hover:bg-slate-100 md:hidden"
           @click="isMobileOpen = !isMobileOpen"
         >

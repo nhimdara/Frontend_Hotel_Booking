@@ -1,5 +1,5 @@
 <template>
-  <section class="relative min-h-[100svh] w-full overflow-hidden">
+  <section class="relative min-h-[calc(100svh-5rem)] w-full overflow-hidden bg-slate-950">
     <img
       src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=2000&auto=format&fit=crop"
       alt="Infinity pool overlooking the coast at sunset"
@@ -14,7 +14,7 @@
     />
 
     <div
-      class="relative z-10 mx-auto flex h-full min-h-[100svh] max-w-5xl flex-col items-center justify-center px-5 pb-10 pt-24 text-center sm:px-6 sm:pt-0 sm:pb-0"
+      class="relative z-10 mx-auto flex min-h-[calc(100svh-5rem)] max-w-6xl flex-col items-center justify-center px-5 py-16 text-center sm:px-6"
     >
       <p
         class="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-amber-300"
@@ -58,9 +58,9 @@
             </svg>
             <div class="flex flex-col min-w-0 flex-1">
               <span class="text-xs font-semibold text-slate-900">Location</span>
-              <input
+              <input v-model.trim="search.location"
                 placeholder="Where are you going?"
-                type="text"
+                type="search"
                 class="w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
               />
             </div>
@@ -87,9 +87,9 @@
             </svg>
             <div class="flex flex-col min-w-0 flex-1">
               <span class="text-xs font-semibold text-slate-900">Dates</span>
-              <input
-                placeholder="Add dates"
-                type="text"
+              <input v-model="search.checkIn"
+                aria-label="Check-in date"
+                type="date"
                 class="w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
               />
             </div>
@@ -114,17 +114,20 @@
             </svg>
             <div class="flex flex-col min-w-0 flex-1">
               <span class="text-xs font-semibold text-slate-900">Guests</span>
-              <input
-                placeholder="Add guests"
-                type="text"
+              <select v-model="search.guests" aria-label="Number of guests"
                 class="w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
-              />
+              >
+                <option :value="1">1 guest</option><option :value="2">2 guests</option>
+                <option :value="3">3 guests</option><option :value="4">4 guests</option>
+                <option :value="5">5+ guests</option>
+              </select>
             </div>
           </div>
 
           <!-- Search Button -->
           <button
             type="button"
+            @click="searchHotels"
             class="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-800 px-7 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-teal-900 hover:shadow-lg active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 sm:mt-0 sm:w-auto sm:rounded-full sm:m-1"
           >
             <svg
@@ -168,6 +171,22 @@
     </div>
   </section>
 </template>
+
+<script setup>
+import { reactive } from "vue";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
+const search = reactive({ location: "", checkIn: "", guests: 2 });
+
+function searchHotels() {
+  router.push({ path: "/hotels", query: {
+    ...(search.location && { search: search.location }),
+    ...(search.checkIn && { check_in: search.checkIn }),
+    guests: search.guests,
+  }});
+}
+</script>
 
 <style scoped>
 .font-display {

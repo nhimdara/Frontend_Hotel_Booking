@@ -72,7 +72,12 @@ export const authApi = {
 
 export const bookingApi = {
   list() {
-    return apiFetch("/bookings");
+    return apiFetch("/bookings",
+      {
+        method: "GET",
+        headers: jsonHeaders(),
+      }
+    );
   },
   create(payload) {
     return apiFetch("/bookings", {
@@ -110,6 +115,18 @@ export const paymentApi = {
 };
 
 export const adminApi = {
+  hotelAdmins() {
+    return apiFetch("/admin/hotel-admins");
+  },
+  createHotelAdmin(payload) {
+    return apiFetch("/admin/hotel-admins", { method: "POST", body: JSON.stringify(payload) });
+  },
+  updateHotelAdmin(id, payload) {
+    return apiFetch(`/admin/hotel-admins/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+  deleteHotelAdmin(id) {
+    return apiFetch(`/admin/hotel-admins/${id}`, { method: "DELETE" });
+  },
   users() {
     return apiFetch("/admin/users");
   },

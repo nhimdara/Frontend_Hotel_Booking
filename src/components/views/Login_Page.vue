@@ -268,7 +268,7 @@ function redirectAfterLogin(user) {
     router.push(String(redirect));
     return;
   }
-  router.push(user.role === "admin" ? "/dashboard" : "/hotels");
+  router.push(["admin", "super_admin"].includes(user.role) ? "/dashboard" : "/hotels");
 }
 
 async function submit() {

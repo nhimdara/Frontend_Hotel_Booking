@@ -360,7 +360,7 @@ const auth = useAuth();
 const profile = {
   fullName: auth.user.value?.fullName || "Admin User",
   email: auth.user.value?.email || "admin@stayeasy.com",
-  role: auth.user.value?.role === "admin" ? "Administrator" : "Guest",
+  role: auth.user.value?.role === "super_admin" ? "Super Administrator" : auth.user.value?.role === "admin" ? "Administrator" : "Guest",
   timezone: "Indochina Time (ICT)",
 };
 
@@ -410,7 +410,7 @@ function saveProfile() {
   auth.updateProfile({
     fullName: form.fullName,
     email: form.email,
-    title: auth.user.value?.role === "admin" ? "Hotel Administrator" : "StayEasy Member",
+    title: auth.user.value?.role === "super_admin" ? "Super Administrator" : auth.user.value?.role === "admin" ? "Hotel Administrator" : "StayEasy Member",
   });
 }
 

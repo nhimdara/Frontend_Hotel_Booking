@@ -201,21 +201,6 @@
               >
                 {{ property.name }}
               </h3>
-              <span
-                class="flex shrink-0 items-center gap-1 text-sm font-semibold text-slate-900"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  class="h-3.5 w-3.5 text-amber-400"
-                >
-                  <path
-                    d="M12 2l2.9 6.26 6.9.6-5.2 4.54L18.2 20 12 16.3 5.8 20l1.6-6.6L2.2 8.86l6.9-.6L12 2z"
-                  />
-                </svg>
-                {{ property.rating.toFixed(2) }}
-              </span>
             </div>
 
             <p class="mt-1.5 flex items-center gap-1.5 text-sm text-slate-500">
@@ -433,21 +418,6 @@
                 >
                   {{ property.name }}
                 </h3>
-                <span
-                  class="flex shrink-0 items-center gap-1 text-sm font-semibold text-slate-900"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    class="h-3.5 w-3.5 text-amber-400"
-                  >
-                    <path
-                      d="M12 2l2.9 6.26 6.9.6-5.2 4.54L18.2 20 12 16.3 5.8 20l1.6-6.6L2.2 8.86l6.9-.6L12 2z"
-                    />
-                  </svg>
-                  {{ property.rating.toFixed(2) }}
-                </span>
               </div>
 
               <p
@@ -536,6 +506,12 @@ const recommended = computed(() =>
 // Computed
 const filteredProperties = computed(() => {
   const filtered = properties.value.filter((property) => {
+    const query = String(route.query.search || "").trim().toLowerCase();
+    if (query) {
+      const searchable = [property.name, property.location, property.city, property.country, property.description]
+        .filter(Boolean).join(" ").toLowerCase();
+      if (!searchable.includes(query)) return false;
+    }
     if (activeFilter.value === "all") return true;
     if (activeFilter.value === "top-rated") {
       return (

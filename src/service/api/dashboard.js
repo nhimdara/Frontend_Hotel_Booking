@@ -308,6 +308,7 @@ export async function fetchBookingsData({ hotelId } = {}) {
     ? deriveOccupancy(normalized, roomData)
     : null;
   const totalRevenue =
+    summaryPayload.revenue_mtd ??
     summaryPayload.revenue?.total ??
     summaryPayload.revenue?.amount ??
     summaryPayload.revenue ??

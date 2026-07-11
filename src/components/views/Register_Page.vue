@@ -21,8 +21,7 @@
                 Register
               </h2>
               <p class="mt-1.5 text-sm text-slate-500">
-                Create a guest account, or register as an admin for dashboard
-                access while developing this app.
+                Create your guest account to save bookings and manage upcoming stays.
               </p>
             </div>
 
@@ -159,30 +158,6 @@
                 </p>
               </div>
 
-              <div>
-                <label
-                  class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500"
-                >
-                  Account type
-                </label>
-                <div class="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
-                  <button
-                    v-for="role in roles"
-                    :key="role.value"
-                    type="button"
-                    class="h-10 rounded-md text-sm font-semibold transition"
-                    :class="
-                      form.role === role.value
-                        ? 'bg-white text-teal-800 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
-                    "
-                    @click="form.role = role.value"
-                  >
-                    {{ role.label }}
-                  </button>
-                </div>
-              </div>
-
               <p
                 v-if="error"
                 class="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
@@ -252,8 +227,7 @@
               Book faster and keep every trip in reach.
             </h1>
             <p class="mt-2 hidden text-sm leading-6 text-white/80 md:block">
-              Guest accounts go to hotel booking. Admin accounts unlock the
-              operations dashboard for managing the hotel.
+              Your account keeps reservations, receipts, and trip details together.
             </p>
           </div>
         </div>
@@ -274,16 +248,10 @@ const error = ref("");
 const loading = ref(false);
 const showPassword = ref(false);
 
-const roles = [
-  { label: "User", value: "user" },
-  { label: "Admin", value: "admin" },
-];
-
 const form = reactive({
   fullName: "",
   email: "",
   password: "",
-  role: "user",
 });
 
 const touched = reactive({
@@ -355,7 +323,7 @@ async function submit() {
   loading.value = true;
   try {
     const user = await Promise.resolve(auth.register(form));
-    router.push(user.role === "admin" ? "/dashboard" : "/hotels");
+    router.push("/hotels");
   } catch (err) {
     error.value = err.message || "Something went wrong. Please try again.";
   } finally {
