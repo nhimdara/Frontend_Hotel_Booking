@@ -13,7 +13,9 @@
     <aside
       :class="[
         'fixed lg:static inset-y-0 left-0 z-40 w-65 min-h-screen bg-slate-50 border-r border-slate-200 flex flex-col shadow-sm transition-transform duration-200 ease-out',
-        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        isMobileMenuOpen
+          ? 'translate-x-0'
+          : '-translate-x-full lg:translate-x-0',
       ]"
     >
       <!-- User Profile -->
@@ -21,13 +23,15 @@
         <div class="flex items-center justify-between gap-3 mb-3">
           <div class="flex items-center gap-3">
             <img
-              src="https://i.pravatar.cc/40?img=12"
-              alt="Alex Rivera"
+              :src="user?.avatar"
+              :alt="user?.fullName"
               class="w-10 h-10 rounded-full object-cover ring-2 ring-teal-400 ring-offset-1 shrink-0"
             />
             <div class="leading-tight">
-              <p class="text-sm font-semibold text-slate-800">Alex Rivera</p>
-              <p class="text-xs text-slate-500">General Manager</p>
+              <p class="text-sm font-semibold text-slate-800">
+                {{ user?.fullName }}
+              </p>
+              <p class="text-xs text-slate-500">{{ user?.title }}</p>
             </div>
           </div>
           <!-- Close button, mobile/tablet only -->
@@ -36,8 +40,18 @@
             class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition shrink-0"
             aria-label="Close menu"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -89,6 +103,13 @@
 
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-slate-200">
+        <button
+          type="button"
+          class="mb-3 flex w-full items-center justify-center rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
+          @click="handleLogout"
+        >
+          Logout
+        </button>
         <p class="text-[10px] text-slate-400 text-center">HotelAdmin v2.1</p>
       </div>
     </aside>
@@ -106,8 +127,18 @@
             class="lg:hidden p-1.5 -ml-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
             aria-label="Open menu"
           >
-            <svg class="w-5.5 h-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              class="w-5.5 h-5.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </button>
           <h1 class="text-sm font-semibold text-slate-700 tracking-wide">
@@ -141,7 +172,12 @@
             class="sm:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition"
             aria-label="Search"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -176,7 +212,8 @@
 
           <!-- Avatar -->
           <img
-            src="https://i.pravatar.cc/32?img=12"
+            :src="user?.avatar"
+            :alt="user?.fullName"
             class="w-8 h-8 rounded-full ring-2 ring-teal-400 cursor-pointer shrink-0"
           />
         </div>
@@ -192,77 +229,41 @@
 
 <script setup>
 import { h, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useAuth } from "../../service/auth.js";
 
 const isMobileMenuOpen = ref(false);
+const router = useRouter();
+const auth = useAuth();
+const user = auth.user;
 
 function handleNavigate(navigate) {
   navigate();
   isMobileMenuOpen.value = false;
 }
 
+function handleLogout() {
+  auth.logout();
+  router.push("/");
+}
+
 // Inline icon components (no extra deps needed)
-const DashboardIcon = () =>
-  h("svg", { fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, [
-    h("path", {
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-      "stroke-width": "2",
-      d: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
-    }),
-  ]);
-
-const BookingsIcon = () =>
-  h("svg", { fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, [
-    h("path", {
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-      "stroke-width": "2",
-      d: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-    }),
-  ]);
-
-const GuestsIcon = () =>
-  h("svg", { fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, [
-    h("path", {
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-      "stroke-width": "2",
-      d: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
-    }),
-  ]);
-
-
-const RoomManagementIcon = () =>
-  h("svg", { fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, [
-    h("path", {
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-      "stroke-width": "2",
-      d: "M3 21V8l9-5 9 5v13M9 21v-6h6v6M3 21h18",
-    }),
-  ]);
-
-const SettingsIcon = () =>
-  h("svg", { fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }, [
-    h("path", {
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-      "stroke-width": "2",
-      d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z",
-    }),
-    h("path", {
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-      "stroke-width": "2",
-      d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z",
-    }),
-  ]);
+import {
+  DashboardIcon,
+  BookingsIcon,
+  GuestsIcon,
+  HotelManagementIcon,
+  RoomManagementIcon,
+  SettingsIcon,
+} from "./icons.js";
 
 const navItems = [
   { name: "Overview", to: "/overview", icon: DashboardIcon },
   { name: "Bookings", to: "/bookings", icon: BookingsIcon },
   { name: "Guests", to: "/guests", icon: GuestsIcon },
+  { name: "Hotel Management", to: "/hotel-management", icon: HotelManagementIcon },
   { name: "Room Management", to: "/room-management", icon: RoomManagementIcon },
+  { name: "Administrators", to: "/dashboard/administrators", icon: GuestsIcon },
   { name: "Settings", to: "/settings", icon: SettingsIcon },
 ];
 </script>

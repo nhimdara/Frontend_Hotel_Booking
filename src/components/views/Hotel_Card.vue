@@ -1,7 +1,7 @@
 <template>
   <div id="hotels" class="min-h-screen bg-slate-50 font-sans">
     <!-- Page Content -->
-    <div class="max-w-350 mx-auto px-6 py-10">
+    <div class="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
       <button
         type="button"
         class="mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-700 hover:text-teal-800"
@@ -26,7 +26,7 @@
 
       <!-- Header -->
       <div
-        class="mb-12 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between"
+        class="mb-10 flex flex-col gap-6 lg:mb-12 lg:flex-row lg:items-end lg:justify-between"
       >
         <!-- Left -->
         <div>
@@ -38,7 +38,7 @@
             </span>
           </div>
           <h1
-            class="text-4xl lg:text-5xl font-bold tracking-tight text-slate-900"
+            class="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl"
           >
             Discover Your Perfect Stay
           </h1>
@@ -53,23 +53,23 @@
         </div>
 
         <!-- Right -->
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           <div
-            class="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm"
+            class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm sm:px-6 sm:py-5"
           >
             <p class="text-3xl font-bold text-slate-900">
-              {{ filteredProperties.length }}
+              {{ apiMatches }}
             </p>
             <p class="mt-1 text-sm text-slate-500">Matches</p>
           </div>
           <div
-            class="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm"
+            class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm sm:px-6 sm:py-5"
           >
             <p class="text-3xl font-bold text-slate-900">${{ averagePrice }}</p>
             <p class="mt-1 text-sm text-slate-500">Avg. Price</p>
           </div>
           <div
-            class="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-center shadow-sm"
+            class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm sm:px-6 sm:py-5"
           >
             <p class="text-3xl font-bold text-slate-900">
               {{ averageRating }}★
@@ -80,11 +80,11 @@
       </div>
       <!-- Filter Bar -->
       <div
-        class="border-b border-slate-200 py-3 pb-10 flex items-center gap-3 flex-wrap"
+        class="flex items-center gap-3 overflow-x-auto border-b border-slate-200 py-3 pb-8 sm:flex-wrap sm:overflow-visible sm:pb-10"
       >
         <button
           @click="setFilter('all')"
-          class="flex items-center gap-2 bg-teal-800 text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-teal-900 transition"
+          class="flex shrink-0 items-center gap-2 rounded-full bg-teal-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-teal-900"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -107,7 +107,7 @@
           v-for="filter in filters"
           :key="filter.value"
           @click="setFilter(filter.value)"
-          class="text-sm border rounded-full px-4 py-1.5 transition"
+          class="shrink-0 rounded-full border px-4 py-1.5 text-sm transition"
           :class="
             activeFilter === filter.value
               ? 'border-teal-800 bg-teal-50 text-teal-900'
@@ -117,14 +117,14 @@
           {{ filter.label }}
         </button>
 
-        <div class="ml-auto flex items-center gap-2">
+        <div class="flex shrink-0 items-center gap-2 sm:ml-auto">
           <span
             class="text-xs font-medium uppercase tracking-widest text-slate-400"
             >Sort:</span
           >
           <select
             v-model="sortOption"
-            class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-teal-600 cursor-pointer"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-600"
           >
             <option value="recommended">Recommended</option>
             <option value="price-low">Price: Low to High</option>
@@ -136,6 +136,22 @@
 
       <!-- Property Grid -->
       <div
+        v-if="loading"
+        class="mt-10 rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-500"
+      >
+        Loading hotels...
+      </div>
+      <div
+        v-else-if="error"
+        class="mt-10 rounded-2xl border border-rose-200 bg-rose-50 p-10 text-center"
+      >
+        <h3 class="text-lg font-semibold text-rose-700">
+          Could not load hotels
+        </h3>
+        <p class="mt-2 text-sm text-rose-500">{{ error }}</p>
+      </div>
+      <div
+        v-else
         class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       >
         <article
@@ -148,6 +164,7 @@
               :src="property.image"
               :alt="property.name"
               class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              @error="setImageFallback"
             />
             <span
               v-if="property.badge"
@@ -184,21 +201,6 @@
               >
                 {{ property.name }}
               </h3>
-              <span
-                class="flex shrink-0 items-center gap-1 text-sm font-semibold text-slate-900"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  class="h-3.5 w-3.5 text-amber-400"
-                >
-                  <path
-                    d="M12 2l2.9 6.26 6.9.6-5.2 4.54L18.2 20 12 16.3 5.8 20l1.6-6.6L2.2 8.86l6.9-.6L12 2z"
-                  />
-                </svg>
-                {{ property.rating.toFixed(2) }}
-              </span>
             </div>
 
             <p class="mt-1.5 flex items-center gap-1.5 text-sm text-slate-500">
@@ -372,13 +374,14 @@
           <article
             v-for="property in recommended"
             :key="'rec-' + property.id"
-            class="group shrink-0 w-80 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-lg flex flex-col"
+            class="group flex w-[min(20rem,82vw)] shrink-0 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-lg sm:w-80"
           >
             <div class="relative aspect-5/4 overflow-hidden">
               <img
                 :src="property.image"
                 :alt="property.name"
                 class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                @error="setImageFallback"
               />
               <span
                 v-if="property.badge"
@@ -415,21 +418,6 @@
                 >
                   {{ property.name }}
                 </h3>
-                <span
-                  class="flex shrink-0 items-center gap-1 text-sm font-semibold text-slate-900"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    class="h-3.5 w-3.5 text-amber-400"
-                  >
-                    <path
-                      d="M12 2l2.9 6.26 6.9.6-5.2 4.54L18.2 20 12 16.3 5.8 20l1.6-6.6L2.2 8.86l6.9-.6L12 2z"
-                    />
-                  </svg>
-                  {{ property.rating.toFixed(2) }}
-                </span>
               </div>
 
               <p
@@ -482,23 +470,29 @@
 </template>
 
 <script setup>
-import { useRouter } from "vue-router";
-import { ref, computed, watch } from "vue";
-import hotelApi from "../../service/api/Hotel.js";
-import Hotel_Detail from "./Hotel_Detail.vue";
+import { useRouter, useRoute } from "vue-router";
+import { ref, computed, onMounted, watch } from "vue";
+import hotelApi, { fallbackImage } from "../../service/api/Hotel.js";
 
 const router = useRouter();
+const route = useRoute();
 
 const ITEMS_PER_PAGE = 8;
 
-const { hotels: properties } = hotelApi.setup();
+const {
+  hotels: properties,
+  stats,
+  loading,
+  error,
+  fetchHotels,
+} = hotelApi.setup();
 
 const filters = [
   { label: "Top Rated", value: "top-rated" },
-  { label: "Under $300", value: "under-300" },
+  { label: "5 Stars", value: "five-star" },
+  { label: "4+ Rating", value: "review-4" },
+  { label: "Under $500", value: "under-500" },
   { label: "Luxury", value: "luxury" },
-  { label: "Boutique", value: "boutique" },
-  { label: "Eiffel View", value: "eiffel-view" },
 ];
 
 const currentPage = ref(1);
@@ -512,19 +506,23 @@ const recommended = computed(() =>
 // Computed
 const filteredProperties = computed(() => {
   const filtered = properties.value.filter((property) => {
-    if (activeFilter.value === "all") return true;
-    if (activeFilter.value === "top-rated") return property.rating >= 4.8;
-    if (activeFilter.value === "under-300") return property.price < 300;
-    if (activeFilter.value === "luxury") return property.price >= 500;
-    if (activeFilter.value === "boutique") {
-      return property.name.toLowerCase().includes("boutique");
+    const query = String(route.query.search || "").trim().toLowerCase();
+    if (query) {
+      const searchable = [property.name, property.location, property.city, property.country, property.description]
+        .filter(Boolean).join(" ").toLowerCase();
+      if (!searchable.includes(query)) return false;
     }
-    if (activeFilter.value === "eiffel-view") {
+    if (activeFilter.value === "all") return true;
+    if (activeFilter.value === "top-rated") {
       return (
-        property.name.toLowerCase().includes("tower") ||
-        property.description.toLowerCase().includes("eiffel")
+        property.rating >= 4.8 ||
+        property.badge?.label?.toLowerCase().includes("top")
       );
     }
+    if (activeFilter.value === "five-star") return property.starRating >= 5;
+    if (activeFilter.value === "review-4") return property.reviewScore >= 4;
+    if (activeFilter.value === "under-500") return property.price < 500;
+    if (activeFilter.value === "luxury") return property.price >= 500;
     return true;
   });
 
@@ -535,6 +533,10 @@ const filteredProperties = computed(() => {
     return b.rating - a.rating || a.price - b.price;
   });
 });
+
+const apiMatches = computed(
+  () => stats.value?.matches ?? filteredProperties.value.length,
+);
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(filteredProperties.value.length / ITEMS_PER_PAGE)),
@@ -548,6 +550,7 @@ const paginatedProperties = computed(() =>
 );
 
 const averagePrice = computed(() => {
+  if (stats.value?.avg_price) return Math.round(Number(stats.value.avg_price));
   if (!filteredProperties.value.length) return 0;
   const total = filteredProperties.value.reduce(
     (sum, property) => sum + property.price,
@@ -557,6 +560,7 @@ const averagePrice = computed(() => {
 });
 
 const averageRating = computed(() => {
+  if (stats.value?.avg_rating) return Number(stats.value.avg_rating).toFixed(1);
   if (!filteredProperties.value.length) return "0.0";
   const total = filteredProperties.value.reduce(
     (sum, property) => sum + property.rating,
@@ -611,14 +615,36 @@ function closeProperty() {
   selectedProperty.value = null;
 }
 
+function setImageFallback(event) {
+  if (event.target.src !== fallbackImage) {
+    event.target.src = fallbackImage;
+  }
+}
+
 watch(sortOption, () => {
   currentPage.value = 1;
+});
+
+// Refetch hotels when navigating to the hotels route
+let previousRouteName = null;
+watch(
+  () => route.name,
+  (currentRouteName) => {
+    if (currentRouteName === "hotels" && previousRouteName !== "hotels") {
+      fetchHotels({ per_page: 100 }).catch(() => {});
+    }
+    previousRouteName = currentRouteName;
+  },
+);
+
+onMounted(() => {
+  fetchHotels({ per_page: 100 }).catch(() => {});
 });
 </script>
 
 <style scoped>
 .line-clamp-1 {
-  display: -webkit-box;     
+  display: -webkit-box;
   -webkit-line-clamp: 1;
   line-clamp: 1;
   -webkit-box-orient: vertical;

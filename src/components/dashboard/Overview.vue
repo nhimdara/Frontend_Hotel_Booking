@@ -37,7 +37,7 @@
           <span class="text-xs font-medium text-emerald-700 bg-emerald-50/70 px-2 py-0.5 rounded-full border border-emerald-200/50">{{ stats.occupancy.label }}</span>
         </div>
         <div class="mt-3 h-1.5 sm:h-2 rounded-full bg-slate-100/80 overflow-hidden">
-          <div class="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-400" :style="{ width: `${stats.occupancy.value}%` }"></div>
+          <div class="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-400" :style="{ width: `${occupancyWidth}%` }"></div>
         </div>
         <p class="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
           <span class="inline-block w-1 h-1 rounded-full bg-teal-300"></span>
@@ -109,7 +109,7 @@
     <!-- ── Revenue Performance Chart ── -->
     <div class="mt-6 bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-4 sm:p-6 shadow-sm">
       <!-- Chart header -->
-      <div class="flex flex-col xs:flex-row xs:items-start justify-between gap-3 mb-4 sm:mb-6">
+      <div class="flex flex-col justify-between gap-3 mb-4 sm:mb-6 sm:flex-row sm:items-start">
         <div>
           <h3 class="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
             <span class="inline-block w-1.5 h-5 rounded-full bg-gradient-to-b from-teal-400 to-emerald-400"></span>
@@ -118,7 +118,7 @@
           <p class="text-xs text-slate-400 mt-0.5 ml-4">Daily revenue fluctuations — opening, high, low, closing.</p>
         </div>
         <!-- Legend + toggle -->
-        <div class="flex flex-wrap items-center gap-3 ml-4 xs:ml-0">
+        <div class="flex flex-wrap items-center gap-3 ml-4 sm:ml-0">
           
           <div class="flex text-xs bg-slate-100/80 rounded-lg overflow-hidden border border-slate-200/60">
             <button
@@ -160,13 +160,14 @@
                 text-anchor="end"
                 fill="#94a3b8"
                 font-size="9"
-              >${{ yVal }}</text>
+              >{{ formatAxisMoney(yVal) }}</text>
             </g>
 
             <!-- Candles -->
             <g v-for="(c, i) in candles" :key="'c-' + i">
               <!-- X label -->
               <text
+                v-if="shouldShowXLabel(i)"
                 :x="cx(i)"
                 :y="svgH - padB + 13"
                 text-anchor="middle"
@@ -249,7 +250,7 @@
             </td>
             <td class="px-5 py-3.5">
               <span :class="['text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap',
-                booking.status === 'Confirmed'
+                ['Confirmed', 'Paid'].includes(booking.status)
                   ? 'bg-teal-50/80 text-teal-700 border border-teal-200/50'
                   : 'bg-amber-50/80 text-amber-700 border border-amber-200/50']">
                 {{ booking.status }}
@@ -279,7 +280,7 @@
             <div class="flex items-center justify-between gap-2">
               <span class="font-medium text-slate-800 truncate">{{ booking.name }}</span>
               <span :class="['text-[11px] font-medium px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap',
-                booking.status === 'Confirmed'
+                ['Confirmed', 'Paid'].includes(booking.status)
                   ? 'bg-teal-50/80 text-teal-700 border border-teal-200/50'
                   : 'bg-amber-50/80 text-amber-700 border border-amber-200/50']">
                 {{ booking.status }}
@@ -353,110 +354,123 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
-import {
-  currentUser,
-  stats,
-  bookings as rawBookings,
-  operations as dashboardOperations,
-  roomAvailability,
-} from '../../service/api/Data_overview.js'
+import { computed, onMounted, ref, watch } from "vue";
+import { fetchDashboardData } from "../../service/api/dashboard.js";
+import { useAuth } from "../../service/auth.js";
 
-// ── Header ───────────────────x───────────────────────────
-const firstName = computed(() => currentUser.name.split(' ')[0])
-const todayLabel = computed(() =>
-  new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-)
-const occupancyRooms = computed(() =>
-  Math.round((roomAvailability.total * stats.occupancy.value) / 100)
-)
-
-// ── Revenue card sparkline ───────────────────────────────
-const sparkline = [40, 55, 45, 70, 60, 80, 65, 90, 72, 85]
-
-// ── Revenue Performance Chart ────────────────────────────
-const chartTab = ref('Current')
-
-const candles = [
-  { label: 'Oct 01', open: 280, high: 310, low: 230, close: 260, bullish: false },
-  { label: 'Oct 04', open: 255, high: 300, low: 240, close: 285, bullish: true  },
-  { label: 'Oct 07', open: 310, high: 320, low: 240, close: 250, bullish: false },
-  { label: 'Oct 10', open: 250, high: 330, low: 235, close: 315, bullish: true  },
-  { label: 'Oct 13', open: 320, high: 340, low: 280, close: 295, bullish: false },
-  { label: 'Oct 16', open: 285, high: 335, low: 270, close: 320, bullish: true  },
-  { label: 'Oct 19', open: 270, high: 390, low: 245, close: 375, bullish: true  },
-  { label: 'Oct 22', open: 370, high: 385, low: 310, close: 325, bullish: false },
-  { label: 'Oct 25', open: 340, high: 355, low: 270, close: 280, bullish: false },
-  { label: 'Oct 28', open: 260, high: 380, low: 210, close: 360, bullish: true  },
-  { label: 'Oct 31', open: 295, high: 375, low: 270, close: 355, bullish: true  },
-]
-
-// SVG dimensions (logical units — scales via viewBox)
-const svgW   = 560
-const svgH   = 220
-const padL   = 36
-const padR   = 8
-const padT   = 10
-const padB   = 24
-const bodyW  = 14
-
-// Responsive height class
-const chartHeight = 'clamp(160px, 35vw, 240px)'
-
-const allVals = candles.flatMap(c => [c.high, c.low])
-const minVal  = Math.min(...allVals) - 20
-const maxVal  = Math.max(...allVals) + 20
-
+const auth = useAuth();
+const currentUser = computed(() => ({
+  name: auth.user.value?.fullName || auth.user.value?.name || "Admin",
+  hotel: auth.user.value?.hotel || "your hotel",
+}));
+const stats = ref({
+  occupancy: { value: 0, label: "Loading" },
+  checkIns: { today: 0, total: 0 },
+  revenue: { amount: "USD 0", change: "Live total" },
+});
+const roomAvailability = ref({ total: 1, occupied: 0, available: 0 });
+const rawBookings = ref([]);
+const chartTab = ref("Current");
+const fallbackCandles = [{ label: "Live", open: 0, high: 1, low: 0, close: 1, bullish: true }];
+const candles = ref(fallbackCandles);
+const firstName = computed(() => currentUser.value.name.split(" ")[0]);
+const todayLabel = computed(() => new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }));
+const occupancyWidth = computed(() => Math.max(0, Math.min(100, Number(stats.value.occupancy.value) || 0)));
+const occupancyRooms = computed(() => roomAvailability.value.occupied);
+const sparkline = computed(() => {
+  const max = Math.max(...candles.value.map((item) => item.high), 1);
+  return candles.value.slice(-10).map((c) => Math.max(12, Math.round((c.close / max) * 100)));
+});
+async function loadDashboard() {
+  try {
+    const data = await fetchDashboardData({ range: chartTab.value.toLowerCase() });
+    stats.value = data.stats;
+    roomAvailability.value = data.roomAvailability;
+    rawBookings.value = data.bookings;
+    candles.value = data.candles.length ? data.candles : fallbackCandles;
+  } catch (err) {
+    console.error("Failed to load dashboard data:", err);
+  }
+}
+const svgW = 560;
+const svgH = 220;
+const padL = 44;
+const padR = 8;
+const padT = 10;
+const padB = 24;
+const chartHeight = "clamp(160px, 35vw, 240px)";
+const allVals = computed(() => candles.value.flatMap((c) => [c.high, c.low]));
+const minVal = computed(() => {
+  const min = Math.min(...allVals.value, 0);
+  const max = Math.max(...allVals.value, 100);
+  const padding = Math.max(20, (max - min) * 0.12);
+  return Math.max(0, min - padding);
+});
+const maxVal = computed(() => {
+  const min = Math.min(...allVals.value, 0);
+  const max = Math.max(...allVals.value, 100);
+  const padding = Math.max(20, (max - min) * 0.12);
+  return max + padding;
+});
 const yGridLines = computed(() => {
-  const step = 50
-  const lines = []
-  for (let v = Math.ceil(minVal / step) * step; v <= maxVal; v += step) lines.push(v)
-  return lines
-})
-
+  const targetTicks = 5;
+  const range = Math.max(1, maxVal.value - minVal.value);
+  const roughStep = range / (targetTicks - 1);
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const residual = roughStep / magnitude;
+  const niceResidual = residual <= 1 ? 1 : residual <= 2 ? 2 : residual <= 5 ? 5 : 10;
+  const step = niceResidual * magnitude;
+  const start = Math.ceil(minVal.value / step) * step;
+  const end = Math.floor(maxVal.value / step) * step;
+  const lines = [];
+  for (let v = start; v <= end; v += step) lines.push(Math.round(v));
+  if (lines.length < 2) {
+    lines.push(Math.round(minVal.value), Math.round(maxVal.value));
+  }
+  return lines;
+});
+const bodyW = computed(() => Math.max(5, Math.min(14, (svgW - padL - padR) / Math.max(candles.value.length, 1) * 0.36)));
 function scaleY(val) {
-  const h = svgH - padT - padB
-  return padT + h - ((val - minVal) / (maxVal - minVal)) * h
+  const h = svgH - padT - padB;
+  return padT + h - ((val - minVal.value) / (maxVal.value - minVal.value || 1)) * h;
 }
-
 function cx(i) {
-  const usable = svgW - padL - padR
-  return padL + (i + 0.5) * (usable / candles.length)
+  const usable = svgW - padL - padR;
+  return padL + (i + 0.5) * (usable / candles.value.length);
 }
-
-// ── Bookings table ───────────────────────────────────────
-const bookings = computed(() =>
-  rawBookings.map(b => ({
-    ...b,
-    dates: `${b.checkIn} – ${b.checkOut}`,
-    initials: b.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase(),
-  }))
-)
-
-const pageSize    = 5
-const currentPage = ref(1)
-const totalPages  = computed(() => Math.max(1, Math.ceil(bookings.value.length / pageSize)))
-
+function shouldShowXLabel(index) {
+  const count = candles.value.length;
+  if (count <= 8) return true;
+  const step = Math.ceil(count / 6);
+  return index === 0 || index === count - 1 || index % step === 0;
+}
+function formatAxisMoney(value) {
+  if (Math.abs(value) >= 1000) return `$${Math.round(value / 100) / 10}k`;
+  return `$${Math.round(value)}`;
+}
+const bookings = computed(() => rawBookings.value.map((b) => ({
+  ...b,
+  dates: `${b.checkIn} - ${b.checkOut}`,
+  initials: b.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase(),
+})));
+const pageSize = 5;
+const currentPage = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(bookings.value.length / pageSize)));
 const paginatedBookings = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return bookings.value.slice(start, start + pageSize)
-})
-
-const rangeStart = computed(() =>
-  bookings.value.length === 0 ? 0 : (currentPage.value - 1) * pageSize + 1
-)
-const rangeEnd = computed(() =>
-  Math.min(currentPage.value * pageSize, bookings.value.length)
-)
-
+  const start = (currentPage.value - 1) * pageSize;
+  return bookings.value.slice(start, start + pageSize);
+});
+const rangeStart = computed(() => bookings.value.length === 0 ? 0 : (currentPage.value - 1) * pageSize + 1);
+const rangeEnd = computed(() => Math.min(currentPage.value * pageSize, bookings.value.length));
 function goToPage(page) {
-  if (page < 1 || page > totalPages.value) return
-  currentPage.value = page
+  if (page < 1 || page > totalPages.value) return;
+  currentPage.value = page;
 }
-
-watch(totalPages, newTotal => {
-  if (currentPage.value > newTotal) currentPage.value = newTotal
-})
+watch(totalPages, (newTotal) => {
+  if (currentPage.value > newTotal) currentPage.value = newTotal;
+});
+watch(chartTab, loadDashboard);
+onMounted(loadDashboard);
 </script>
 
 <style scoped>

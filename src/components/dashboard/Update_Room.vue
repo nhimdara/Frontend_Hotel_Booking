@@ -315,24 +315,84 @@
           </div>
 
           <div class="mt-5 sm:mt-6 space-y-4">
-            <!-- Import by link -->
+            <!-- File upload -->
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-2"
-                >Add image by link</label
+                >Upload image files</label
               >
-              <div class="flex gap-2">
+              <label
+                class="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-5 text-center transition hover:border-emerald-300 hover:bg-emerald-50/50"
+              >
+                <svg
+                  class="mb-2 h-6 w-6 text-emerald-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="1.8"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12V4m0 0l-4 4m4-4l4 4"
+                  />
+                </svg>
+                <span class="text-sm font-medium text-slate-700"
+                  >Choose room photos</span
+                >
+                <span class="mt-1 text-xs text-slate-400"
+                  >JPG or PNG, up to 5MB each</span
+                >
                 <input
-                  v-model="form.mediaLink"
-                  type="url"
-                  placeholder="https://example.com/room-view.jpg"
-                  class="flex-1 min-w-0 text-sm text-slate-700 placeholder:text-slate-400 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-200/70 focus:border-emerald-300 transition-colors"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  class="hidden"
+                  @change="handleFileUpload"
                 />
+              </label>
+            </div>
+
+            <!-- Preview thumbnails -->
+            <div
+              v-if="form.mediaFiles.length"
+              class="flex flex-wrap gap-2 mt-3"
+            >
+              <div
+                v-for="(file, i) in form.mediaFiles"
+                :key="i"
+                class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border border-slate-200 group"
+              >
+                <img :src="file.preview" class="w-full h-full object-cover" />
+                <div
+                  v-if="file.file"
+                  class="absolute top-1 left-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded"
+                >
+                  File
+                </div>
+                <div
+                  v-else
+                  class="absolute top-1 left-1 bg-gray-500 text-white text-xs px-1.5 py-0.5 rounded"
+                >
+                  Existing
+                </div>
                 <button
                   type="button"
-                  @click="importLink"
-                  class="text-sm font-medium text-white bg-emerald-800 px-4 sm:px-5 py-2.5 rounded-xl hover:bg-emerald-900 transition-colors shrink-0"
+                  @click="removeFile(i)"
+                  class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
                 >
-                  Import
+                  <svg
+                    class="w-4 h-4 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -393,7 +453,7 @@
 
 <script setup>
 import { reactive, ref, computed, watch, onMounted } from "vue";
-import { rooms as roomInventory } from "../../service/api/Data_room.js";
+import { fetchRoom, updateRoom } from "../../service/api/rooms.js";
 
 // `roomId` lets this component fetch its own data; `room` lets a parent pass
 // already-loaded data directly (e.g. from a list it already fetched). At
@@ -444,7 +504,6 @@ const form = reactive({
   maxOccupancy: "",
   description: "",
   mediaFiles: [], // [{ id?, file, preview, existing }]
-  mediaLink: "",
 });
 
 function applyRoomToState(data) {
@@ -473,7 +532,6 @@ function applyRoomToState(data) {
     preview: m.url,
     existing: true,
   }));
-  form.mediaLink = "";
 }
 
 async function loadRoom() {
@@ -494,32 +552,7 @@ async function loadRoom() {
 }
 
 async function fetchRoomById(id) {
-  const inventoryRoom = roomInventory.find(
-    (room) => String(room.id) === String(id),
-  );
-
-  if (inventoryRoom) {
-    const floorNumber = inventoryRoom.floor?.replace(/\D/g, "") || "";
-    const baseRate = 180 + (Number(inventoryRoom.roomNumber) % 7) * 20;
-    const maxOccupancy = inventoryRoom.roomType?.includes("Suite") ? 4 : 2;
-
-    return {
-      id: inventoryRoom.id,
-      roomName: inventoryRoom.roomNumber,
-      roomType: inventoryRoom.roomType,
-      floorNumber,
-      wing: "Main Wing",
-      baseRate,
-      maxOccupancy,
-      description: `${inventoryRoom.roomType} on ${inventoryRoom.floor}. Designed for comfort and a relaxing stay.`,
-      media: [],
-    };
-  }
-
-  console.warn(
-    "Room not found in mock inventory, using fallback values for id: " + id,
-  );
-  return { id };
+  return fetchRoom(id);
 }
 
 onMounted(loadRoom);
@@ -574,13 +607,6 @@ function removeFile(index) {
   form.mediaFiles.splice(index, 1);
 }
 
-function importLink() {
-  const url = form.mediaLink.trim();
-  if (!url) return;
-  form.mediaFiles.push({ file: null, preview: url, existing: false });
-  form.mediaLink = "";
-}
-
 // Discards in-progress edits and restores the last-saved values.
 function revertChanges() {
   applyRoomToState(originalRoom);
@@ -607,15 +633,10 @@ async function handleSubmit() {
       })),
     };
 
-    // Replace with your real API call, e.g.:
-    // await fetch(`/api/rooms/${originalRoom.id}`, { method: "PATCH", body: ... });
-    console.log("Updating room:", payload);
+    const savedRoom = await updateRoom(originalRoom.id, form);
 
     // Treat the just-saved form values as the new "original" baseline.
-    applyRoomToState({
-      ...payload,
-      media: form.mediaFiles.map((f) => ({ id: f.id, url: f.preview })),
-    });
+    applyRoomToState(savedRoom);
 
     emit("saved", payload);
   } finally {

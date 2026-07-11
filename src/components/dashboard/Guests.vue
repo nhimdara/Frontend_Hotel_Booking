@@ -299,87 +299,69 @@
 </template>
 
 <script setup>
-import { computed, h, ref, watch } from "vue";
-import { stats, filters, guests as rawGuests } from "../../service/api/Data_guest.js";
-
-// --- Loyalty tier icons ---
-const DiamondIcon = () =>
-  h("svg", { class: "w-3.5 h-3.5 text-amber-500", fill: "currentColor", viewBox: "0 0 24 24" }, [
-    h("path", { d: "M12 2l4 6h-8l4-6zM4 9h16l-8 13L4 9z" }),
-  ]);
-const StarIcon = (color) => () =>
-  h("svg", { class: `w-3.5 h-3.5 ${color}`, fill: "currentColor", viewBox: "0 0 24 24" }, [
-    h("path", { d: "M12 2l2.6 6.6L21 9.2l-5 4.6 1.4 6.9L12 17.3 6.6 20.7 8 13.8 3 9.2l6.4-0.6L12 2z" }),
-  ]);
-const TrophyIcon = (color) => () =>
-  h("svg", { class: `w-3.5 h-3.5 ${color}`, fill: "none", stroke: "currentColor", "stroke-width": "1.8", viewBox: "0 0 24 24" }, [
-    h("path", { "stroke-linecap": "round", "stroke-linejoin": "round", d: "M8 4h8v4a4 4 0 11-8 0V4zM8 5H5a2 2 0 002 4M16 5h3a2 2 0 01-2 4M12 12v3m-3 3h6m-3 0v-3" }),
-  ]);
-
-const loyaltyIconMap = {
-  "Diamond Elite": DiamondIcon,
-  Platinum: TrophyIcon("text-slate-400"),
-  Gold: StarIcon("text-amber-400"),
-  Silver: StarIcon("text-slate-400"),
-};
+import { computed, h, onMounted, ref, watch } from "vue";
+import { fetchGuestsData } from "../../service/api/dashboard.js";
+const stats = ref({
+  vipGuests: { value: 0, badge: "Admin users" },
+  returningRate: { value: "0%", badge: "Active accounts" },
+  avgLifetimeValue: { value: "USD 0", badge: "Tracked spend" },
+  blacklisted: { value: 0, badge: "Restricted" },
+});
+const filters = ["All Guests", "VIP Only", "Corporate", "New (7 Days)"];
+const rawGuests = ref([]);
+async function loadGuests() {
+  try {
+    rawGuests.value = await fetchGuestsData();
+    const vipCount = rawGuests.value.filter((g) => ["admin", "Diamond Elite", "Platinum"].includes(g.loyalty)).length;
+    stats.value = {
+      vipGuests: { value: vipCount, badge: "Admin/VIP accounts" },
+      returningRate: { value: `${rawGuests.value.length}`, badge: "Total users" },
+      avgLifetimeValue: { value: "USD 0", badge: "From API users" },
+      blacklisted: { value: rawGuests.value.filter((g) => g.status === "Blacklisted").length, badge: "Restricted" },
+    };
+  } catch (err) {
+    console.error("Failed to load guests:", err);
+  }
+}
+const DiamondIcon = () => h("svg", { class: "w-3.5 h-3.5 text-amber-500", fill: "currentColor", viewBox: "0 0 24 24" }, [h("path", { d: "M12 2l4 6h-8l4-6zM4 9h16l-8 13L4 9z" })]);
+const StarIcon = (color) => () => h("svg", { class: `w-3.5 h-3.5 ${color}`, fill: "currentColor", viewBox: "0 0 24 24" }, [h("path", { d: "M12 2l2.6 6.6L21 9.2l-5 4.6 1.4 6.9L12 17.3 6.6 20.7 8 13.8 3 9.2l6.4-0.6L12 2z" })]);
+const TrophyIcon = (color) => () => h("svg", { class: `w-3.5 h-3.5 ${color}`, fill: "none", stroke: "currentColor", "stroke-width": "1.8", viewBox: "0 0 24 24" }, [h("path", { "stroke-linecap": "round", "stroke-linejoin": "round", d: "M8 4h8v4a4 4 0 11-8 0V4zM8 5H5a2 2 0 002 4M16 5h3a2 2 0 01-2 4M12 12v3m-3 3h6m-3 0v-3" })]);
+const loyaltyIconMap = { "Diamond Elite": DiamondIcon, Platinum: TrophyIcon("text-slate-400"), Gold: StarIcon("text-amber-400"), Silver: StarIcon("text-slate-400"), admin: DiamondIcon };
 function loyaltyIcon(level) {
   return loyaltyIconMap[level] ?? StarIcon("text-slate-300");
 }
-
-// --- Search ---
 const searchQuery = ref("");
-
-// --- Filters ---
 const activeFilter = ref("All Guests");
-
 const filteredGuests = computed(() => {
-  let list = rawGuests;
-  // text search
+  let list = rawGuests.value;
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase();
-    list = list.filter(
-      (g) => g.name.toLowerCase().includes(q) || g.email.toLowerCase().includes(q)
-    );
+    list = list.filter((g) => g.name.toLowerCase().includes(q) || g.email.toLowerCase().includes(q));
   }
   switch (activeFilter.value) {
-    case "VIP Only":
-      return list.filter((g) => ["Diamond Elite", "Platinum"].includes(g.loyalty));
-    case "Corporate":
-      return list.filter((g) => /\.(com|io|org)$/.test(g.email.split("@")[1] || ""));
-    case "New (7 Days)":
-      return list.slice(0, 4);
-    default:
-      return list;
+    case "VIP Only": return list.filter((g) => ["admin", "Diamond Elite", "Platinum"].includes(g.loyalty));
+    case "Corporate": return list.filter((g) => /\.(com|io|org)$/.test(g.email.split("@")[1] || ""));
+    case "New (7 Days)": return list.slice(0, 4);
+    default: return list;
   }
 });
-
-// --- Pagination ---
 const pageSize = 4;
 const currentPage = ref(1);
-
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredGuests.value.length / pageSize)));
 const paginatedGuests = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
   return filteredGuests.value.slice(start, start + pageSize);
 });
-const rangeStart = computed(() =>
-  filteredGuests.value.length === 0 ? 0 : (currentPage.value - 1) * pageSize + 1
-);
+const rangeStart = computed(() => filteredGuests.value.length === 0 ? 0 : (currentPage.value - 1) * pageSize + 1);
 const rangeEnd = computed(() => Math.min(currentPage.value * pageSize, filteredGuests.value.length));
-
 function goToPage(page) {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
 }
-
 watch([activeFilter, searchQuery], () => { currentPage.value = 1; });
 watch(totalPages, (newTotal) => {
   if (currentPage.value > newTotal) currentPage.value = newTotal;
 });
-
-const statusStyles = {
-  "Checked In": "bg-emerald-50 text-emerald-700",
-  "Past Guest": "bg-slate-100 text-slate-500",
-  Reserved: "bg-amber-50 text-amber-600",
-};
+const statusStyles = { "Checked In": "bg-emerald-50 text-emerald-700", "Past Guest": "bg-slate-100 text-slate-500", Reserved: "bg-amber-50 text-amber-600", Blacklisted: "bg-rose-50 text-rose-600" };
+onMounted(loadGuests);
 </script>

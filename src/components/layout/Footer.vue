@@ -22,7 +22,7 @@
 
             <!-- Website -->
             <a
-              href="#"
+              href="/"
               class="w-12 h-12 rounded-full bg-slate-800 hover:bg-teal-500 transition-all duration-300 flex items-center justify-center"
             >
               <svg
@@ -43,7 +43,7 @@
 
             <!-- Email -->
             <a
-              href="#"
+              href="mailto:hello@stayeasy.com"
               class="w-12 h-12 rounded-full bg-slate-800 hover:bg-teal-500 transition-all duration-300 flex items-center justify-center"
             >
               <svg
@@ -64,7 +64,7 @@
 
             <!-- Phone -->
             <a
-              href="#"
+              href="tel:+6625550199"
               class="w-12 h-12 rounded-full bg-slate-800 hover:bg-teal-500 transition-all duration-300 flex items-center justify-center"
             >
               <svg
@@ -94,12 +94,12 @@
 
           <ul class="space-y-5">
             <li v-for="item in discover" :key="item">
-              <a
-                href="#"
+              <RouterLink
+                :to="item.to"
                 class="text-gray-400 hover:text-teal-400 transition duration-300"
               >
-                {{ item }}
-              </a>
+                {{ item.label }}
+              </RouterLink>
             </li>
           </ul>
         </div>
@@ -112,12 +112,12 @@
 
           <ul class="space-y-5">
             <li v-for="item in support" :key="item">
-              <a
-                href="#"
+              <RouterLink
+                :to="item.to"
                 class="text-gray-400 hover:text-teal-400 transition duration-300"
               >
-                {{ item }}
-              </a>
+                {{ item.label }}
+              </RouterLink>
             </li>
           </ul>
         </div>
@@ -133,10 +133,13 @@
             hotel offers, and travel inspiration.
           </p>
 
-          <form class="space-y-4">
+          <form class="space-y-4" @submit.prevent="subscribe">
 
             <input
+              v-model.trim="email"
               type="email"
+              required
+              aria-label="Email address"
               placeholder="Email address"
               class="w-full px-5 py-4 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-gray-500 outline-none focus:border-teal-400"
             />
@@ -144,7 +147,7 @@
             <button
               class="w-full bg-teal-500 hover:bg-teal-400 text-slate-900 font-semibold py-4 rounded-xl transition duration-300"
             >
-              Subscribe
+              {{ subscribed ? "You're on the list" : "Subscribe" }}
             </button>
 
           </form>
@@ -195,19 +198,27 @@
 </template>
 
 <script setup>
+import { ref } from "vue";
 const year = new Date().getFullYear();
+const email = ref("");
+const subscribed = ref(false);
+
+function subscribe() {
+  subscribed.value = true;
+  email.value = "";
+}
 
 const discover = [
-  "Our Story",
-  "Hotels & Resorts",
-  "Loyalty Program",
-  "Careers",
+  { label: "Our Story", to: "/" },
+  { label: "Hotels & Resorts", to: "/hotels" },
+  { label: "Loyalty Program", to: "/register" },
+  { label: "Careers", to: "/contact" },
 ];
 
 const support = [
-  "Help Center",
-  "Contact Us",
-  "Reservation Guide",
-  "Sitemap",
+  { label: "Help Center", to: "/contact" },
+  { label: "Contact Us", to: "/contact" },
+  { label: "Reservation Guide", to: "/hotels" },
+  { label: "Sitemap", to: "/" },
 ];
 </script>

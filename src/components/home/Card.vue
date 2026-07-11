@@ -1,6 +1,6 @@
 <template>
-  <section class="mx-auto max-w-[1440px] px-6 py-20 lg:px-12">
-    <div class="mb-10 flex items-end justify-between">
+  <section class="mx-auto max-w-[1440px] px-4 py-14 sm:px-6 sm:py-20 lg:px-12">
+    <div class="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <h2
           class="font-display text-3xl font-semibold text-slate-900 sm:text-4xl"
@@ -31,7 +31,41 @@
       </a>
     </div>
 
-    <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+    <div
+      v-if="loading && !displayedStays.length"
+      class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4"
+    >
+      <div
+        v-for="item in 4"
+        :key="item"
+        class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100"
+      >
+        <div class="aspect-[5/4] animate-pulse bg-slate-100"></div>
+        <div class="space-y-4 p-5">
+          <div class="h-5 w-3/4 animate-pulse rounded bg-slate-100"></div>
+          <div class="h-4 w-1/2 animate-pulse rounded bg-slate-100"></div>
+          <div class="h-12 animate-pulse rounded bg-slate-100"></div>
+          <div class="h-10 animate-pulse rounded bg-slate-100"></div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-else-if="error && !displayedStays.length"
+      class="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-6 text-sm text-rose-700"
+    >
+      <p class="font-semibold">Could not load featured stays.</p>
+      <p class="mt-1">{{ error }}</p>
+    </div>
+
+    <div
+      v-else-if="!displayedStays.length"
+      class="rounded-2xl border border-slate-100 bg-white px-5 py-6 text-sm text-slate-500"
+    >
+      No featured stays are available yet.
+    </div>
+
+    <div v-else class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
       <article
         v-for="stay in displayedStays"
         :key="stay.id"
@@ -42,6 +76,7 @@
             :src="stay.image"
             :alt="stay.name"
             class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            @error="setImageFallback"
           />
 
           <span
@@ -119,7 +154,7 @@
 
           <!-- Price + Button -->
           <div
-            class="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4"
+            class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <p class="text-base font-semibold text-teal-800">
               ${{ stay.price }}
@@ -127,7 +162,7 @@
             </p>
             <button
               type="button"
-              class="shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95"
+              class="w-full shrink-0 rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-900 active:scale-95 sm:w-auto"
               @click="viewDetails(stay)"
             >
               View Details
@@ -141,14 +176,20 @@
 
 <script setup>
 import { useRouter } from "vue-router";
-import { computed } from "vue";
-import hotelApi from "./../../service/api/Hotel.js";
+import { computed, onMounted } from "vue";
+import hotelApi, { fallbackImage } from "./../../service/api/Hotel.js";
 
 const emit = defineEmits(["show-hotels"]);
 const router = useRouter();
 
-const { hotels: stays } = hotelApi.setup();
+const { hotels: stays, loading, error, fetchHotels } = hotelApi.setup();
 const displayedStays = computed(() => stays.value.slice(0, 4));
+
+onMounted(() => {
+  if (!stays.value.length) {
+    fetchHotels({ per_page: 4 }).catch(() => {});
+  }
+});
 
 function toggleWishlist(stay) {
   stay.wishlisted = !stay.wishlisted;
@@ -160,6 +201,12 @@ function viewHotels() {
 
 function viewDetails(stay) {
   router.push(`/hotel/${stay.id}`);
+}
+
+function setImageFallback(event) {
+  if (event.target.src !== fallbackImage) {
+    event.target.src = fallbackImage;
+  }
 }
 </script>
 
