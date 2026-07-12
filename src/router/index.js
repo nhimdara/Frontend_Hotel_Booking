@@ -1,27 +1,11 @@
 // router/index.js
 import { createRouter, createWebHistory } from "vue-router";
-import PublicLayout from "../components/layout/PublicLayout.vue";
-import DashboardLayout from "../components/layout/DashboardLayout.vue";
-import Home_Page from "../components/views/Home_Page.vue";
-import Hotel_Card from "../components/views/Hotel_Card.vue";
-import Hotel_Detail from "../components/views/Hotel_Detail.vue";
-import Confirm_Page from "../components/views/Confirm_Page.vue";
-import Process_Page from "../components/views/Process_Page.vue";
-import Login_Page from "../components/views/Login_Page.vue";
-import Register_Page from "../components/views/Register_Page.vue";
-import Contact_Page from "../components/views/Contact_Page.vue";
-import NotFound_Page from "../components/views/NotFound_Page.vue";
-import Overview from "../components/dashboard/Overview.vue";
-import Booking from "../components/dashboard/Booking.vue";
-import Guests from "../components/dashboard/Guests.vue";
-import Room_Management from "../components/dashboard/Room_Management.vue";
-import Hotel_Management from "../components/dashboard/Hotel_Management.vue";
-import Add_Room from "../components/dashboard/Add_Room.vue";
-import Add_Hotel from "../components/dashboard/Add_Hotel.vue";
-import Update_Room from "../components/dashboard/Update_Room.vue";
-import Update_Hotel from "../components/dashboard/Update_Hotel.vue";
-import Setting from "../components/dashboard/Setting.vue";
-import Admin_Management from "../components/dashboard/Admin_Management.vue";
+import MainLayout from "../layouts/MainLayout.vue";
+import AdminLayout from "../layouts/AdminLayout.vue";
+import NotFoundView from "../views/errors/NotFoundView.vue";
+import publicRoutes from "./publicRoutes.js";
+import customerRoutes from "./customerRoutes.js";
+import adminRoutes from "./adminRoutes.js";
 import { getCurrentUser, hasApiToken, isAdminUser } from "../service/auth.js";
 
 const router = createRouter({
@@ -29,117 +13,14 @@ const router = createRouter({
   routes: [
     {
       path: "/",
-      component: PublicLayout,
-      children: [
-        {
-          path: "",
-          name: "home",
-          component: Home_Page,
-        },
-        {
-          path: "hotels",
-          name: "hotels",
-          component: Hotel_Card,
-        },
-        {
-          path: "hotel/:id",
-          name: "hotel-detail",
-          component: Hotel_Detail,
-        },
-        {
-          path: "confirm",
-          name: "confirm",
-          component: Confirm_Page,
-          meta: { requiresAuth: true },
-        },
-        {
-          path: "process",
-          name: "process",
-          component: Process_Page,
-          meta: { requiresAuth: true },
-        },
-        {
-          path: "login",
-          name: "login",
-          component: Login_Page,
-          meta: { guestOnly: true },
-        },
-        {
-          path: "register",
-          name: "register",
-          component: Register_Page,
-          meta: { guestOnly: true },
-        },
-        {
-          path: "contact",
-          name: "contact",
-          component: Contact_Page,
-        },
-      ],
+      component: MainLayout,
+      children: [...publicRoutes, ...customerRoutes],
     },
     {
       path: "/dashboard",
-      component: DashboardLayout,
+      component: AdminLayout,
       meta: { requiresAuth: true, requiresAdmin: true },
-      children: [
-        {
-          path: "",
-          name: "dashboard",
-          component: Overview,
-        },
-        {
-          path: "bookings",
-          name: "bookings",
-          component: Booking,
-        },
-        {
-          path: "guests",
-          name: "guests",
-          component: Guests,
-        },
-        {
-          path: "room-management",
-          name: "rooms",
-          component: Room_Management,
-        },
-        {
-          path: "hotel-management",
-          name: "hotel-management",
-          component: Hotel_Management,
-        },
-        {
-          path: "room-management/add",
-          name: "room-add",
-          component: Add_Room,
-        },
-        {
-          path: "hotels/add",
-          name: "hotel-add",
-          component: Add_Hotel,
-        },
-        {
-          path: "hotel-management/:id/edit",
-          name: "hotel-edit",
-          component: Update_Hotel,
-          props: (route) => ({ hotelId: route.params.id }),
-        },
-        {
-          path: "room-management/:id/edit",
-          name: "room-edit",
-          component: Update_Room,
-          props: (route) => ({ roomId: route.params.id }),
-        },
-        {
-          path: "settings",
-          name: "settings",
-          component: Setting,
-        },
-        {
-          path: "administrators",
-          name: "administrators",
-          component: Admin_Management,
-        },
-      ],
+      children: adminRoutes,
     },
     {
       path: "/overview",
@@ -184,8 +65,8 @@ const router = createRouter({
     {
       path: "/:pathMatch(.*)*",
       name: "not-found",
-      component: PublicLayout,
-      children: [{ path: "", component: NotFound_Page }],
+      component: MainLayout,
+      children: [{ path: "", component: NotFoundView }],
     },
   ],
   scrollBehavior() {

@@ -473,9 +473,11 @@
 import { useRouter, useRoute } from "vue-router";
 import { ref, computed, onMounted, watch } from "vue";
 import hotelApi, { fallbackImage } from "../../service/api/Hotel.js";
+import { syncWishlist, useWishlist } from "../../service/wishlist.js";
 
 const router = useRouter();
 const route = useRoute();
+const wishlist = useWishlist();
 
 const ITEMS_PER_PAGE = 8;
 
@@ -595,7 +597,7 @@ function goToPage(page) {
 }
 
 function toggleWishlist(property) {
-  property.wishlisted = !property.wishlisted;
+  property.wishlisted = wishlist.toggle(property);
 }
 
 function setFilter(filter) {
@@ -638,7 +640,7 @@ watch(
 );
 
 onMounted(() => {
-  fetchHotels({ per_page: 100 }).catch(() => {});
+  fetchHotels({ per_page: 100 }).then(syncWishlist).catch(() => {});
 });
 </script>
 

@@ -97,6 +97,14 @@
 
           <div class="mx-4 h-px bg-slate-100 sm:hidden" />
 
+          <!-- Check out -->
+          <div class="group flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-5 sm:border-l sm:border-slate-200">
+            <div class="flex min-w-0 flex-1 flex-col">
+              <span class="text-xs font-semibold text-slate-900">Check out</span>
+              <input v-model="search.checkOut" :min="search.checkIn" aria-label="Check-out date" type="date" class="w-full bg-transparent text-sm text-slate-500 focus:outline-none" />
+            </div>
+          </div>
+
           <!-- Guests -->
           <div
             class="group flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-5 sm:border-l sm:border-slate-200"
@@ -177,12 +185,13 @@ import { reactive } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-const search = reactive({ location: "", checkIn: "", guests: 2 });
+const search = reactive({ location: "", checkIn: "", checkOut: "", guests: 2 });
 
 function searchHotels() {
   router.push({ path: "/hotels", query: {
     ...(search.location && { search: search.location }),
     ...(search.checkIn && { check_in: search.checkIn }),
+    ...(search.checkOut && { check_out: search.checkOut }),
     guests: search.guests,
   }});
 }

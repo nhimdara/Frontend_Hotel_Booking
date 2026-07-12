@@ -520,10 +520,12 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import hotelApi, { fallbackImage } from "../../service/api/Hotel.js";
 import { ensureRoomsForHotel } from "../../service/api/rooms.js";
+import { syncWishlist, useWishlist } from "../../service/wishlist.js";
 
 const route = useRoute();
 const router = useRouter();
 const { hotels, loading, error, fetchHotel } = hotelApi.setup();
+const wishlist = useWishlist();
 
 const hotel = ref(null);
 const apiRooms = ref([]);
@@ -537,7 +539,7 @@ async function loadHotel() {
   hotel.value = hotels.value.find((h) => h.id === hotelId) || null;
 
   try {
-    hotel.value = await fetchHotel(hotelId);
+    hotel.value = syncWishlist([await fetchHotel(hotelId)])[0];
     await loadRoomsForHotel();
   } catch {
     hotel.value = null;
@@ -797,7 +799,7 @@ function reserveNow() {
 }
 
 function toggleWishlist() {
-  if (hotel.value) hotel.value.wishlisted = !hotel.value.wishlisted;
+  if (hotel.value) hotel.value.wishlisted = wishlist.toggle(hotel.value);
 }
 
 function setImageFallback(event) {

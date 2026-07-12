@@ -178,21 +178,23 @@
 import { useRouter } from "vue-router";
 import { computed, onMounted } from "vue";
 import hotelApi, { fallbackImage } from "./../../service/api/Hotel.js";
+import { syncWishlist, useWishlist } from "../../service/wishlist.js";
 
 const emit = defineEmits(["show-hotels"]);
 const router = useRouter();
+const wishlist = useWishlist();
 
 const { hotels: stays, loading, error, fetchHotels } = hotelApi.setup();
 const displayedStays = computed(() => stays.value.slice(0, 4));
 
 onMounted(() => {
   if (!stays.value.length) {
-    fetchHotels({ per_page: 4 }).catch(() => {});
+    fetchHotels({ per_page: 4 }).then(syncWishlist).catch(() => {});
   }
 });
 
 function toggleWishlist(stay) {
-  stay.wishlisted = !stay.wishlisted;
+  stay.wishlisted = wishlist.toggle(stay);
 }
 
 function viewHotels() {

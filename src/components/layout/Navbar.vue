@@ -98,6 +98,10 @@
 
       <!-- Right Side -->
       <div class="flex items-center gap-4">
+        <RouterLink to="/wishlist" class="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 text-slate-700 transition hover:border-teal-700 hover:text-teal-800" aria-label="Saved stays">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+          <span v-if="wishlistCount" class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-slate-950">{{ wishlistCount }}</span>
+        </RouterLink>
         <!-- Book Button -->
         <RouterLink
           to="/hotels"
@@ -219,6 +223,9 @@
         <RouterLink to="/contact" class="rounded-lg px-3 py-2 hover:bg-slate-50" @click="isMobileOpen = false">
           Contact
         </RouterLink>
+        <RouterLink to="/wishlist" class="rounded-lg px-3 py-2 hover:bg-slate-50" @click="isMobileOpen = false">
+          Saved stays ({{ wishlistCount }})
+        </RouterLink>
         <RouterLink
           v-if="isAdmin"
           to="/dashboard"
@@ -260,9 +267,11 @@
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "../../service/auth.js";
+import { useWishlist } from "../../service/wishlist.js";
 
 const router = useRouter();
 const auth = useAuth();
+const { count: wishlistCount } = useWishlist();
 const user = auth.user;
 const isAuthenticated = auth.isAuthenticated;
 const isAdmin = auth.isAdmin;
