@@ -209,14 +209,14 @@ function subscribe() {
 }
 
 const discover = [
-  { label: "Our Story", to: "/about" },
+  { label: "Our Story", to: "/" },
   { label: "Hotels & Resorts", to: "/hotels" },
   { label: "Loyalty Program", to: "/register" },
   { label: "Careers", to: "/contact" },
 ];
 
 const support = [
-  { label: "Help Center", to: "/faq" },
+  { label: "Help Center", to: "/contact" },
   { label: "Contact Us", to: "/contact" },
   { label: "Reservation Guide", to: "/hotels" },
   { label: "Sitemap", to: "/" },

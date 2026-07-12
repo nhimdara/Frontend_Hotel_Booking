@@ -434,8 +434,10 @@ import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { createRoom } from "../../service/api/rooms.js";
 import { hotelApi } from "../../service/api/Hotel.js";
+import { useAuth } from "../../service/auth.js";
 
 const router = useRouter();
+const { isSuperAdmin } = useAuth();
 
 const roomTypes = [
   "Standard King",
@@ -466,7 +468,9 @@ const message = reactive({ type: "", text: "" });
 
 async function loadHotels() {
   try {
-    hotels.value = await hotelApi.list({ per_page: 100 });
+    hotels.value = isSuperAdmin.value
+      ? await hotelApi.adminList()
+      : await hotelApi.list({ per_page: 100 });
     if (!form.hotelId && hotels.value.length) {
       form.hotelId = hotels.value[0].id;
     }

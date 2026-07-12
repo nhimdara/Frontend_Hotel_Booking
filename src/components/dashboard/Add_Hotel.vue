@@ -141,6 +141,7 @@
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   class="hidden"
                   @change="handleImageFile"
                 />
@@ -169,10 +170,10 @@
             />
           </label>
           <div
-            v-if="imageFile"
+            v-if="imageFiles.length"
             class="mt-3 text-xs text-emerald-600 font-medium"
           >
-            ✓ Image selected: {{ imageFile.name }}
+            ✓ {{ imageFiles.length }} image{{ imageFiles.length === 1 ? "" : "s" }} selected
           </div>
         </section>
 
@@ -217,7 +218,7 @@ import { hotelApi } from "../../service/api/Hotel.js";
 const router = useRouter();
 const saving = ref(false);
 const message = reactive({ type: "", text: "" });
-const imageFile = ref(null);
+const imageFiles = ref([]);
 const imagePreview = ref("");
 
 const form = reactive({
@@ -239,12 +240,12 @@ function slugify(value) {
 }
 
 function handleImageFile(event) {
-  const file = event.target.files?.[0] || null;
+  const files = Array.from(event.target.files || []);
   if (imagePreview.value) {
     URL.revokeObjectURL(imagePreview.value);
   }
-  imageFile.value = file;
-  imagePreview.value = file ? URL.createObjectURL(file) : "";
+  imageFiles.value = files;
+  imagePreview.value = files[0] ? URL.createObjectURL(files[0]) : "";
   event.target.value = "";
 }
 
@@ -275,9 +276,7 @@ function hotelPayload() {
   });
 
   // Append image if selected
-  if (imageFile.value) {
-    data.append("image", imageFile.value);
-  }
+  imageFiles.value.forEach((file) => data.append("image_files[]", file));
 
   return data;
 }

@@ -2,6 +2,8 @@
   <div>
     <Banner />
     <Card @show-hotels="goToHotels" />
+    <DestinationExplorer />
+    <BookingExperience />
     <Trending />
     <section class="bg-teal-950 px-6 py-16 text-white sm:py-20">
       <div class="mx-auto max-w-7xl">
@@ -29,6 +31,8 @@ import { useRouter } from "vue-router";
 import Banner from "../home/Banner.vue";
 import Card from "../home/Card.vue";
 import Trending from "../home/Trending.vue";
+import DestinationExplorer from "../home/DestinationExplorer.vue";
+import BookingExperience from "../home/BookingExperience.vue";
 
 const router = useRouter();
 const stats = [

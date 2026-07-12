@@ -37,13 +37,13 @@
       </p>
 
       <!-- Search card -->
-      <div class="mt-8 w-full max-w-4xl sm:mt-10">
+      <div class="mt-8 w-full max-w-6xl sm:mt-10">
         <div
           class="flex flex-col gap-0 rounded-2xl bg-white/95 p-3 shadow-2xl shadow-black/30 ring-1 ring-black/5 backdrop-blur-sm sm:flex-row sm:items-center sm:gap-0 sm:rounded-full sm:p-2"
         >
           <!-- Location -->
           <div
-            class="group flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-5"
+            class="group flex min-w-0 items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-[1.35] sm:rounded-full sm:px-5"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -61,7 +61,7 @@
               <input v-model.trim="search.location"
                 placeholder="Where are you going?"
                 type="search"
-                class="w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
+                class="min-w-0 w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
               />
             </div>
           </div>
@@ -70,7 +70,7 @@
 
           <!-- Dates -->
           <div
-            class="group flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-5 sm:border-l sm:border-slate-200"
+            class="group flex min-w-0 items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-4 sm:border-l sm:border-slate-200"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -90,7 +90,7 @@
               <input v-model="search.checkIn"
                 aria-label="Check-in date"
                 type="date"
-                class="w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
+                class="min-w-0 w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
               />
             </div>
           </div>
@@ -98,16 +98,16 @@
           <div class="mx-4 h-px bg-slate-100 sm:hidden" />
 
           <!-- Check out -->
-          <div class="group flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-5 sm:border-l sm:border-slate-200">
+          <div class="group flex min-w-0 items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-4 sm:border-l sm:border-slate-200">
             <div class="flex min-w-0 flex-1 flex-col">
               <span class="text-xs font-semibold text-slate-900">Check out</span>
-              <input v-model="search.checkOut" :min="search.checkIn" aria-label="Check-out date" type="date" class="w-full bg-transparent text-sm text-slate-500 focus:outline-none" />
+              <input v-model="search.checkOut" :min="search.checkIn" aria-label="Check-out date" type="date" class="min-w-0 w-full bg-transparent text-sm text-slate-500 focus:outline-none" />
             </div>
           </div>
 
           <!-- Guests -->
           <div
-            class="group flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-1 sm:rounded-full sm:px-5 sm:border-l sm:border-slate-200"
+            class="group flex min-w-0 items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-slate-50 sm:flex-[.8] sm:rounded-full sm:px-4 sm:border-l sm:border-slate-200"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -123,7 +123,7 @@
             <div class="flex flex-col min-w-0 flex-1">
               <span class="text-xs font-semibold text-slate-900">Guests</span>
               <select v-model="search.guests" aria-label="Number of guests"
-                class="w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
+                class="min-w-0 w-full bg-transparent text-sm text-slate-500 placeholder:text-slate-400 focus:outline-none"
               >
                 <option :value="1">1 guest</option><option :value="2">2 guests</option>
                 <option :value="3">3 guests</option><option :value="4">4 guests</option>

@@ -95,7 +95,7 @@
                 <span class="text-sm font-medium text-slate-700">Choose a hotel image</span>
                 <span class="mt-1 text-xs text-slate-400">JPG or PNG, up to 5MB</span>
               </template>
-              <input type="file" accept="image/*" class="hidden" @change="handleImageFile" />
+              <input type="file" accept="image/*" multiple class="hidden" @change="handleImageFile" />
             </label>
           </div>
         </section>
@@ -121,6 +121,10 @@
           <label class="mt-4 block">
             <span class="mb-1.5 block text-sm font-medium text-slate-700">Amenities</span>
             <input v-model="form.amenitiesText" class="field" placeholder="Pool, Spa, Free WiFi" />
+          </label>
+          <label class="mt-5 flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <span><span class="block text-sm font-semibold text-slate-800">Visible to guests</span><span class="mt-0.5 block text-xs text-slate-500">Publish or hide this hotel from public search.</span></span>
+            <input v-model="form.is_active" type="checkbox" class="h-5 w-5 rounded border-slate-300 accent-teal-700" />
           </label>
         </section>
 
@@ -174,7 +178,7 @@ const activeHotelId = computed(() => props.hotelId ?? props.id ?? null);
 const loading = ref(true);
 const saving = ref(false);
 const message = reactive({ type: "", text: "" });
-const imageFile = ref(null);
+const imageFiles = ref([]);
 const imagePreview = ref("");
 
 const originalHotel = reactive({
@@ -187,6 +191,7 @@ const originalHotel = reactive({
   amenitiesText: "",
   description: "",
   image: "",
+  is_active: true,
 });
 
 const form = reactive({
@@ -197,6 +202,7 @@ const form = reactive({
   star_rating: 4,
   amenitiesText: "",
   description: "",
+  is_active: true,
 });
 
 function slugify(value) {
@@ -222,6 +228,7 @@ function applyHotelToState(hotel = {}) {
     amenitiesText: Array.isArray(hotel.amenities) ? hotel.amenities.join(", ") : "",
     description: hotel.description ?? "",
     image: hotel.image || "",
+    is_active: hotel.is_active !== false,
   });
 
   form.name = originalHotel.name;
@@ -231,8 +238,9 @@ function applyHotelToState(hotel = {}) {
   form.star_rating = originalHotel.star_rating;
   form.amenitiesText = originalHotel.amenitiesText;
   form.description = originalHotel.description;
+  form.is_active = originalHotel.is_active;
   imagePreview.value = originalHotel.image;
-  imageFile.value = null;
+  imageFiles.value = [];
 }
 
 async function loadHotel() {
@@ -262,18 +270,19 @@ const isDirty = computed(() => {
     Number(form.star_rating || 0) !== Number(originalHotel.star_rating || 0) ||
     form.amenitiesText !== originalHotel.amenitiesText ||
     form.description !== originalHotel.description ||
+    form.is_active !== originalHotel.is_active ||
     imagePreview.value !== originalHotel.image ||
-    Boolean(imageFile.value)
+    Boolean(imageFiles.value.length)
   );
 });
 
 function handleImageFile(event) {
-  const file = event.target.files?.[0] || null;
+  const files = Array.from(event.target.files || []);
   if (imagePreview.value?.startsWith("blob:")) {
     URL.revokeObjectURL(imagePreview.value);
   }
-  imageFile.value = file;
-  imagePreview.value = file ? URL.createObjectURL(file) : originalHotel.image;
+  imageFiles.value = files;
+  imagePreview.value = files[0] ? URL.createObjectURL(files[0]) : originalHotel.image;
   event.target.value = "";
 }
 
@@ -290,6 +299,7 @@ function hotelPayload() {
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean),
+    is_active: form.is_active,
   };
 
   const data = new FormData();
@@ -297,13 +307,11 @@ function hotelPayload() {
     if (Array.isArray(value)) {
       value.forEach((item) => data.append(`${key}[]`, item));
     } else {
-      data.append(key, value);
+      data.append(key, typeof value === "boolean" ? (value ? "1" : "0") : value);
     }
   });
 
-  if (imageFile.value) {
-    data.append("image", imageFile.value);
-  }
+  imageFiles.value.forEach((file) => data.append("image_files[]", file));
 
   return data;
 }
