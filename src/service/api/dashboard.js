@@ -229,12 +229,10 @@ export function normalizeRevenueSeries(raw = {}) {
 export async function fetchDashboardData({ hotelId, range = "current" } = {}) {
   await ensureApiToken();
 
-  const [overview, revenue, recentBookings, roomData] = await Promise.all([
-    adminApi.overview(hotelId),
-    adminApi.revenuePerformance(hotelId, range),
-    adminApi.recentBookings(hotelId, 10),
-    fetchRooms(hotelId ? { hotel_id: hotelId } : {}).catch(() => null),
-  ]);
+  const snapshot = await adminApi.snapshot(hotelId, range);
+  const overview = snapshot.overview || {};
+  const revenue = snapshot.revenue || {};
+  const recentBookings = snapshot.recent_bookings || {};
   const normalizedOverview = normalizeOverview(overview);
   const bookings = toArray(
     recentBookings.bookings ||
@@ -246,23 +244,6 @@ export async function fetchDashboardData({ hotelId, range = "current" } = {}) {
     recentBookings.data ||
     recentBookings
   ).map(normalizeBooking);
-  const shouldDeriveOccupancy = normalizedOverview.stats.occupancy.value === 0 && bookings.some(isOccupyingBooking);
-  const derivedOccupancy = shouldDeriveOccupancy
-    ? deriveOccupancy(bookings, roomData, normalizedOverview)
-    : null;
-
-  if (derivedOccupancy) {
-    normalizedOverview.stats.occupancy = {
-      value: derivedOccupancy.percent,
-      label: occupancyLabel(derivedOccupancy.percent),
-    };
-    normalizedOverview.roomAvailability = {
-      total: derivedOccupancy.total,
-      occupied: derivedOccupancy.occupied,
-      available: derivedOccupancy.available,
-    };
-  }
-
   return {
     ...normalizedOverview,
     candles: normalizeRevenueSeries(revenue),

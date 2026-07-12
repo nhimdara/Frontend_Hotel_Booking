@@ -167,6 +167,11 @@ export const adminApi = {
     const query = hotelId ? `?hotel_id=${hotelId}` : "";
     return apiFetch(`/admin/dashboard/overview${query}`);
   },
+  snapshot(hotelId, range = "current") {
+    const params = new URLSearchParams({ range });
+    if (hotelId) params.set("hotel_id", hotelId);
+    return apiFetch(`/admin/dashboard/snapshot?${params}`);
+  },
   revenuePerformance(hotelId, range = "current") {
     const params = new URLSearchParams({ range });
     if (hotelId) params.set("hotel_id", hotelId);
