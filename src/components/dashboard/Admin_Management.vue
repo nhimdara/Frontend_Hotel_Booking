@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-slate-50 p-4 text-slate-800 sm:p-6 lg:p-8">
-    <div class="mx-auto max-w-6xl">
+    <div class="w-full">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p class="text-xs font-bold uppercase tracking-[.2em] text-teal-700">Team access</p>
