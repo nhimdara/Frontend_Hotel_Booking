@@ -1,14 +1,14 @@
-import Overview from "../components/dashboard/Overview.vue";
-import Booking from "../components/dashboard/Booking.vue";
-import Guests from "../components/dashboard/Guests.vue";
-import RoomManagement from "../components/dashboard/Room_Management.vue";
-import HotelManagement from "../components/dashboard/Hotel_Management.vue";
-import AddRoom from "../components/dashboard/Add_Room.vue";
-import AddHotel from "../components/dashboard/Add_Hotel.vue";
-import UpdateRoom from "../components/dashboard/Update_Room.vue";
-import UpdateHotel from "../components/dashboard/Update_Hotel.vue";
-import Setting from "../components/dashboard/Setting.vue";
-import AdminManagement from "../components/dashboard/Admin_Management.vue";
+const Overview = () => import("../components/dashboard/Overview.vue");
+const Booking = () => import("../components/dashboard/Booking.vue");
+const Guests = () => import("../components/dashboard/Guests.vue");
+const RoomManagement = () => import("../components/dashboard/Room_Management.vue");
+const HotelManagement = () => import("../components/dashboard/Hotel_Management.vue");
+const AddRoom = () => import("../components/dashboard/Add_Room.vue");
+const AddHotel = () => import("../components/dashboard/Add_Hotel.vue");
+const UpdateRoom = () => import("../components/dashboard/Update_Room.vue");
+const UpdateHotel = () => import("../components/dashboard/Update_Hotel.vue");
+const Setting = () => import("../components/dashboard/Setting.vue");
+const AdminManagement = () => import("../components/dashboard/Admin_Management.vue");
 
 export default [
   { path: "", name: "dashboard", component: Overview },

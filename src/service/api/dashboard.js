@@ -3,6 +3,9 @@ import { clearApiToken, ensureApiToken, hasApiToken } from "../auth.js";
 import { guests as demoGuests } from "./Data_guest.js";
 import { fetchRooms } from "./rooms.js";
 
+const dashboardCache = new Map();
+const DASHBOARD_CACHE_MS = 15_000;
+
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -227,6 +230,10 @@ export function normalizeRevenueSeries(raw = {}) {
 }
 
 export async function fetchDashboardData({ hotelId, range = "current" } = {}) {
+  const cacheKey = `${hotelId || "default"}:${range}`;
+  const cached = dashboardCache.get(cacheKey);
+  if (cached && Date.now() - cached.savedAt < DASHBOARD_CACHE_MS) return cached.data;
+
   await ensureApiToken();
 
   const snapshot = await adminApi.snapshot(hotelId, range);
@@ -244,11 +251,13 @@ export async function fetchDashboardData({ hotelId, range = "current" } = {}) {
     recentBookings.data ||
     recentBookings
   ).map(normalizeBooking);
-  return {
+  const data = {
     ...normalizedOverview,
     candles: normalizeRevenueSeries(revenue),
     bookings,
   };
+  dashboardCache.set(cacheKey, { data, savedAt: Date.now() });
+  return data;
 }
 
 export async function fetchBookingsData({ hotelId } = {}) {
