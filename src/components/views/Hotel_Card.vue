@@ -627,18 +627,6 @@ watch(sortOption, () => {
   currentPage.value = 1;
 });
 
-// Refetch hotels when navigating to the hotels route
-let previousRouteName = null;
-watch(
-  () => route.name,
-  (currentRouteName) => {
-    if (currentRouteName === "hotels" && previousRouteName !== "hotels") {
-      fetchHotels({ per_page: 100 }).catch(() => {});
-    }
-    previousRouteName = currentRouteName;
-  },
-);
-
 onMounted(() => {
   fetchHotels({ per_page: 100 }).then(syncWishlist).catch(() => {});
 });

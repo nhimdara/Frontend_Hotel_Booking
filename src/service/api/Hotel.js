@@ -14,8 +14,9 @@ const loading = ref(false);
 const error = ref("");
 
 const apiOrigin = API_URL.replace(/\/api\/?$/, "");
+const debugLog = () => {};
 
-console.log("🔧 Hotel API Configuration:", {
+debugLog("🔧 Hotel API Configuration:", {
   API_URL,
   apiOrigin,
   env: import.meta.env.VITE_API_URL,
@@ -70,7 +71,7 @@ export function resolveAssetUrl(url) {
 
   // Already an absolute URL
   if (/^https?:\/\//i.test(normalizedUrl)) {
-    console.log(`  resolveAssetUrl: ${normalizedUrl} -> absolute URL`);
+    debugLog(`  resolveAssetUrl: ${normalizedUrl} -> absolute URL`);
     return normalizedUrl;
   }
 
@@ -82,7 +83,7 @@ export function resolveAssetUrl(url) {
   // Path starting with /
   if (normalizedUrl.startsWith("/")) {
     const resolved = `${apiOrigin}${normalizedUrl}`;
-    console.log(
+    debugLog(
       `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (apiOrigin: ${apiOrigin})`,
     );
     return resolved;
@@ -96,14 +97,14 @@ export function resolveAssetUrl(url) {
     const resolved = `${apiOrigin}/${publicStoragePath}`
       .replace(/\/\//g, "/")
       .replace(/:\//, "://");
-    console.log(
+    debugLog(
       `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (storage/uploads path)`,
     );
     return resolved;
   }
 
   const resolved = `${apiOrigin}/${publicStoragePath}`;
-  console.log(
+  debugLog(
     `  resolveAssetUrl: ${normalizedUrl} -> ${resolved} (relative path)`,
   );
   return resolved;
@@ -131,12 +132,12 @@ function firstImage(raw) {
   // Check for various image field names that API might return
   if (raw.image) {
     const resolved = resolveAssetUrl(raw.image);
-    console.log("✓ Found image in image:", { raw: raw.image, resolved });
+    debugLog("✓ Found image in image:", { raw: raw.image, resolved });
     return resolved;
   }
   if (raw.image_url) {
     const resolved = resolveAssetUrl(raw.image_url);
-    console.log("✓ Found image in image_url:", {
+    debugLog("✓ Found image in image_url:", {
       raw: raw.image_url,
       resolved,
     });
@@ -144,7 +145,7 @@ function firstImage(raw) {
   }
   if (raw.image_path) {
     const resolved = resolveAssetUrl(raw.image_path);
-    console.log("✓ Found image in image_path:", {
+    debugLog("✓ Found image in image_path:", {
       raw: raw.image_path,
       resolved,
     });
@@ -152,7 +153,7 @@ function firstImage(raw) {
   }
   if (raw.featured_image) {
     const resolved = resolveAssetUrl(raw.featured_image);
-    console.log("✓ Found image in featured_image:", {
+    debugLog("✓ Found image in featured_image:", {
       raw: raw.featured_image,
       resolved,
     });
@@ -160,7 +161,7 @@ function firstImage(raw) {
   }
   if (raw.cover_image) {
     const resolved = resolveAssetUrl(raw.cover_image);
-    console.log("✓ Found image in cover_image:", {
+    debugLog("✓ Found image in cover_image:", {
       raw: raw.cover_image,
       resolved,
     });
@@ -169,7 +170,7 @@ function firstImage(raw) {
 
   if (imageUrls.length) {
     const resolved = resolveAssetUrl(imageUrls[0]);
-    console.log("✓ Found image in image_urls array:", {
+    debugLog("✓ Found image in image_urls array:", {
       raw: imageUrls[0],
       resolved,
     });
@@ -179,16 +180,16 @@ function firstImage(raw) {
     const image = raw.images[0];
     const url = typeof image === "string" ? image : image.url || image.path;
     const resolved = resolveAssetUrl(url);
-    console.log("✓ Found image in images array:", { raw: url, resolved });
+    debugLog("✓ Found image in images array:", { raw: url, resolved });
     return resolved;
   }
 
-  console.log(
+  debugLog(
     "✗ No image found, using fallback. Image-related fields:",
     Object.keys(raw).filter((k) => k.includes("image")),
   );
   if (Object.keys(raw).length > 0) {
-    console.log("  All available fields in response:", Object.keys(raw));
+    debugLog("  All available fields in response:", Object.keys(raw));
   }
   return fallbackImage;
 }
@@ -312,7 +313,7 @@ export function normalizeHotel(raw = {}) {
   });
 
   const finalImage = hotelImage(raw);
-  console.log("Hotel normalized:", {
+  debugLog("Hotel normalized:", {
     name: raw.name,
     apiOrigin,
     rawImageFields: {
@@ -446,22 +447,22 @@ export const hotelApi = {
         : { method: "POST", body: JSON.stringify(payload) };
     try {
       const response = await apiFetch("/hotels", options);
-      console.log("Raw API response from hotel creation:", response);
-      console.log("Response keys:", response ? Object.keys(response) : "null");
+      debugLog("Raw API response from hotel creation:", response);
+      debugLog("Response keys:", response ? Object.keys(response) : "null");
 
       // Handle different API response formats
       const hotelData = response?.data || response?.hotel || response;
-      console.log("Extracted hotel data:", hotelData);
-      console.log("Hotel data image fields:", {
+      debugLog("Extracted hotel data:", hotelData);
+      debugLog("Hotel data image fields:", {
         image: hotelData?.image,
         image_url: hotelData?.image_url,
         image_path: hotelData?.image_path,
       });
 
       // Normalize to trigger image extraction logging
-      console.log("📍 Now normalizing hotel data to extract image...");
+      debugLog("📍 Now normalizing hotel data to extract image...");
       const normalized = normalizeHotel(hotelData);
-      console.log("✅ Normalized hotel with image:", normalized.image);
+      debugLog("✅ Normalized hotel with image:", normalized.image);
 
       return saveHotelToStore(normalized);
     } catch (err) {
@@ -469,9 +470,9 @@ export const hotelApi = {
       clearApiToken();
       await ensureApiToken({ refresh: true });
       const response = await apiFetch("/hotels", options);
-      console.log("Retry response from hotel creation:", response);
+      debugLog("Retry response from hotel creation:", response);
       const hotelData = response?.data || response?.hotel || response;
-      console.log("📍 Now normalizing hotel data from retry...");
+      debugLog("📍 Now normalizing hotel data from retry...");
       const normalized = normalizeHotel(hotelData);
       return saveHotelToStore(normalized);
     }

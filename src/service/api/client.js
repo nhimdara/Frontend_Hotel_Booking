@@ -2,6 +2,11 @@ export const API_URL =
   import.meta.env.VITE_API_URL ||
   "https://backend-hotel-booking-5.onrender.com/api";
 
+const pendingGets = new Map();
+const responseCache = new Map();
+const PUBLIC_CACHE_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 20_000;
+
 export function jsonHeaders(token = localStorage.getItem("token")) {
   return {
     "Content-Type": "application/json",
@@ -11,6 +16,16 @@ export function jsonHeaders(token = localStorage.getItem("token")) {
 }
 
 export async function apiFetch(path, options = {}) {
+  const method = String(options.method || "GET").toUpperCase();
+  const cacheable = method === "GET" && !localStorage.getItem("token") && path.startsWith("/hotels");
+  const cacheKey = `${method}:${path}`;
+  if (cacheable) {
+    const cached = responseCache.get(cacheKey);
+    if (cached && Date.now() - cached.savedAt < PUBLIC_CACHE_MS) return cached.data;
+  }
+  if (method === "GET" && pendingGets.has(cacheKey)) return pendingGets.get(cacheKey);
+  if (method !== "GET") responseCache.clear();
+
   const isFormData = options.body instanceof FormData;
   const token = localStorage.getItem("token");
   const headers = {
@@ -23,25 +38,33 @@ export async function apiFetch(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-  });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    const error = new Error(data?.message || "API request failed");
-    if (data?.errors) {
-      error.message = Object.values(data.errors).flat().join(" ");
+  const request = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch(`${API_URL}${path}`, { ...options, headers, signal: options.signal || controller.signal });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const error = new Error(data?.message || "API request failed");
+        if (data?.errors) error.message = Object.values(data.errors).flat().join(" ");
+        error.status = res.status;
+        error.errors = data?.errors || {};
+        error.data = data;
+        throw error;
+      }
+      if (cacheable) responseCache.set(cacheKey, { data, savedAt: Date.now() });
+      return data;
+    } catch (error) {
+      if (error?.name === "AbortError") throw new Error("The API took too long to respond. Please try again.");
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
-    error.status = res.status;
-    error.errors = data?.errors || {};
-    error.data = data;
-    throw error;
-  }
+  })();
 
-  return data;
+  if (method === "GET") pendingGets.set(cacheKey, request);
+  try { return await request; }
+  finally { if (method === "GET") pendingGets.delete(cacheKey); }
 }
 
 export const authApi = {
